@@ -1,36 +1,63 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# سَنَد (SANAD) - منصة دعم واحتياجات العائلات في سوريا
 
-## Getting Started
+منصة متكاملة بنظام SaaS تُمكّن المغتربين السوريين حول العالم من تلبية الاحتياجات الأساسية لعائلاتهم داخل سوريا (سلل غذائية، أدوية الأمراض المزمنة، صهاريج مياه، وقود تدفئة شتوية، وطاقة شمسية) بدفع دولي آمن وتوصيل ميداني مباشر.
 
-First, run the development server:
+---
+
+## 🚀 التشغيل السريع (Local Development)
 
 ```bash
+# 1. الدخول للمجلد
+cd sanad
+
+# 2. تشغيل سيرفر التطوير
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+افتح المتصفح على: `http://localhost:3000`
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 🌟 مميزات الواجهة المنفذة
 
-## Learn More
+1. **الصفحة الرئيسية (`/`):**
+   - تصميم أنيق يدعم العربية (RTL) بشكل أصيل.
+   - قسم Hero مع إحصائيات الإنجاز وسعر الصرف التقديري لحظياً.
+   - تصفح باقات الاحتياجات حسب الفئات (غذائي، صحي، مياه، طاقة، طوارئ).
+   - نافذة طلب متطورة (`OrderModal`) تجمع بيانات المستلم في سوريا (الاسم، رقم الهاتف السوري، المحافظة، العنوان التفصيلي، والملاحظات).
+   - زر **"محاكاة دفع فوري"** مدمج لتمكينك من تقديم عرض تجريبي كامل أمام عائلتك دون الحاجة لبطاقة دفع في كل مرة.
 
-To learn more about Next.js, take a look at the following resources:
+2. **لوحة تحكم المغترب (`/dashboard/expatriate`):**
+   - بطاقات إحصائية: إجمالي الدعم المدفوع بالدولار وما يقابله بالليرة السورية، عدد الطلبات الجارية في الميدان، والطلبات المسلّمة.
+   - خط زمني تفاعلي لمراحل التوصيل: (1. استلام الدفع -> 2. جاري التجهيز والتوصيل -> 3. تم التسليم للأهل).
+   - إمكانية تصفح وطلب باقات جديدة بنقرة واحدة.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+3. **لوحة تحكم مزود الخدمة الميداني في سوريا (`/dashboard/provider`):**
+   - واجهة خفيفة وسريعة مهيأة لشبكات الاتصال السورية الضعيفة.
+   - مؤشر اتصال ذكي (متصل / غير متصل بالإنترنت).
+   - فلترة سريعة حسب المحافظات السورية (دمشق، ريف دمشق، حلب، حمص، اللاذقية...).
+   - **زر فتح محادثة WhatsApp فورية** مع المستلم بنقرة زر مع رسالة مجهزة مسبقاً.
+   - **زر اتصال هاتفي مباشر** برقم المستلم السوري.
+   - زر تحديث الحالة الميدانية: (بدء التجهيز -> تأكيد التسليم) ينعكس مباشرة في لوحة المغترب.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+4. **واجهة برمجة التطبيقات (API Routes):**
+   - `/api/services`: جلب الباقات والخدمات مع دعم استرجاع البيانات من Supabase أو الذاكرة المؤقتة.
+   - `/api/orders`: إدارة الطلبات وتحديث حالتها بين المغترب والمزود.
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## ⚙️ ربط الخدمات الخارجية (.env.local)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+عندما تكون جاهزاً لربط قاعدة البيانات وبوابة الدفع الحقيقية، قم بتعديل ملف `.env.local`:
+
+```env
+# 1. Supabase
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOi...
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOi...
+
+# 2. Lemon Squeezy
+LEMON_SQUEEZY_API_KEY=your_api_key
+LEMON_SQUEEZY_WEBHOOK_SECRET=your_secret
+NEXT_PUBLIC_LEMON_SQUEEZY_STORE_URL=https://sanad-relief.lemonsqueezy.com/buy/variant-id
+```
