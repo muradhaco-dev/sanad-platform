@@ -13,12 +13,20 @@ import {
   Loader2,
   KeyRound,
   AlertCircle,
-  CheckCircle2
+  CheckCircle2,
+  Store,
+  User,
+  Zap,
+  Sparkles
 } from 'lucide-react';
 
 export default function SignUpPage() {
   const { t, lang } = useLanguage();
   const router = useRouter();
+
+  // Role Selection (Dual Signup: Customer vs Vendor)
+  const [role, setRole] = useState<'customer' | 'vendor'>('customer');
+  const [storeName, setStoreName] = useState('');
 
   // Form states
   const [email, setEmail] = useState('');
@@ -42,11 +50,22 @@ export default function SignUpPage() {
         throw new Error(lang === 'ar' ? 'كلمة المرور يجب أن تكون 6 أحرف على الأقل' : 'Password must be at least 6 characters');
       }
 
-      const { data, error } = await signUpWithEmail(email, password);
+      if (role === 'vendor' && !storeName.trim()) {
+        throw new Error(lang === 'ar' ? 'يرجى كتابة اسم المتجر أو النشاط التجاري' : 'Please provide a store name');
+      }
+
+      const { data, error } = await signUpWithEmail(email, password, {
+        role,
+        store_name: storeName.trim(),
+        full_name: email.split('@')[0],
+      });
 
       if (error) {
         throw error;
       }
+
+      // Save role locally to redirect properly upon OTP confirmation
+      localStorage.setItem('sanad_signup_role', role);
 
       // Transition to OTP verification step
       setStep('otp_verification');
@@ -74,8 +93,13 @@ export default function SignUpPage() {
         throw error;
       }
 
-      // Success -> Redirect to customer dashboard
-      router.push('/dashboard');
+      // Instant Activation: Vendors redirect to /vendor immediately with zero waiting!
+      const targetRole = localStorage.getItem('sanad_signup_role') || role;
+      if (targetRole === 'vendor') {
+        router.push('/vendor');
+      } else {
+        router.push('/dashboard');
+      }
     } catch (err: any) {
       setErrorMsg(t('invalidOtp'));
     } finally {
@@ -125,6 +149,60 @@ export default function SignUpPage() {
         {/* Step 1: Initial Form */}
         {step === 'form' ? (
           <>
+            {/* Dual-Signup Frictionless Role Selector */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-slate-700">
+                {lang === 'ar' ? 'نوع الحساب المراد إنشاؤه:' : 'Select Account Type:'}
+              </label>
+              <div className="grid grid-cols-2 gap-2 p-1.5 bg-slate-100 rounded-2xl">
+                {/* Option 1: Customer */}
+                <button
+                  type="button"
+                  onClick={() => setRole('customer')}
+                  className={`py-3 px-2 rounded-xl text-xs font-bold transition flex flex-col items-center gap-1 cursor-pointer ${
+                    role === 'customer'
+                      ? 'bg-white text-emerald-800 shadow-sm border border-slate-200'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <User className="w-4 h-4 text-emerald-600" />
+                    <span>{t('signUpAsCustomer')}</span>
+                  </div>
+                  <span className="text-[10px] font-normal text-slate-500 text-center">
+                    {t('customerRoleDesc')}
+                  </span>
+                </button>
+
+                {/* Option 2: Vendor (Instant Activation) */}
+                <button
+                  type="button"
+                  onClick={() => setRole('vendor')}
+                  className={`py-3 px-2 rounded-xl text-xs font-bold transition flex flex-col items-center gap-1 cursor-pointer ${
+                    role === 'vendor'
+                      ? 'bg-emerald-600 text-white shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <Store className="w-4 h-4" />
+                    <span>{t('signUpAsVendor')}</span>
+                  </div>
+                  <span className={`text-[10px] font-normal text-center ${role === 'vendor' ? 'text-emerald-100' : 'text-slate-500'}`}>
+                    {t('vendorRoleDesc')}
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            {/* Instant Activation Notice for Vendors */}
+            {role === 'vendor' && (
+              <div className="p-3 bg-amber-50 text-amber-900 border border-amber-200 rounded-xl text-xs flex items-center gap-2">
+                <Zap className="w-4 h-4 text-amber-600 shrink-0" />
+                <span className="font-semibold">{t('instantActivationBadge')}</span>
+              </div>
+            )}
+
             {/* Google OAuth Button */}
             <button
               type="button"
@@ -162,6 +240,26 @@ export default function SignUpPage() {
 
             {/* Email / Password Form */}
             <form onSubmit={handleSignUp} className="space-y-4">
+              {/* Store Name input if Vendor */}
+              {role === 'vendor' && (
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    {t('storeNameLabel')} <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <Store className="w-4 h-4 text-slate-400 absolute top-3 start-3" />
+                    <input
+                      type="text"
+                      required
+                      value={storeName}
+                      onChange={(e) => setStoreName(e.target.value)}
+                      placeholder={t('storeNamePlaceholder')}
+                      className="w-full text-xs border border-slate-200 rounded-xl py-2.5 ps-9 pe-3 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition"
+                    />
+                  </div>
+                </div>
+              )}
+
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
                   {t('emailLabel')}
@@ -212,7 +310,11 @@ export default function SignUpPage() {
                 className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-xl text-xs font-bold shadow-md hover:shadow-lg transition flex items-center justify-center gap-2 cursor-pointer"
               >
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                <span>{t('signUp')}</span>
+                <span>
+                  {role === 'vendor'
+                    ? (lang === 'ar' ? 'إنشاء حساب المزود وتفعيل المتجر فوراً' : 'Create Vendor Account (Instant Activation)')
+                    : t('signUp')}
+                </span>
               </button>
             </form>
           </>
@@ -251,7 +353,7 @@ export default function SignUpPage() {
               onClick={() => setStep('form')}
               className="w-full text-center text-xs text-slate-500 hover:text-slate-800 font-semibold"
             >
-              {lang === 'ar' ? '← العودة لتعديل البريد الإلكتروني' : '← Back to edit email'}
+              {lang === 'ar' ? '← العودة لتعديل البيانات' : '← Back to edit details'}
             </button>
           </form>
         )}

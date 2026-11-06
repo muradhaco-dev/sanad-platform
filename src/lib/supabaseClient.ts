@@ -12,12 +12,28 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 });
 
 // Authentication Helpers
-export async function signUpWithEmail(email: string, password: string) {
+export async function signUpWithEmail(
+  email: string,
+  password: string,
+  metadata?: {
+    role?: 'customer' | 'vendor';
+    full_name?: string;
+    store_name?: string;
+    city?: string;
+  }
+) {
+  const role = metadata?.role || 'customer';
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
       emailRedirectTo: typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : undefined,
+      data: {
+        role: role,
+        full_name: metadata?.full_name || email.split('@')[0],
+        store_name: metadata?.store_name || (role === 'vendor' ? 'متجر محلي معتمد' : ''),
+        city: metadata?.city || 'دمشق',
+      },
     },
   });
   return { data, error };
