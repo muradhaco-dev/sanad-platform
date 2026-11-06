@@ -111,6 +111,28 @@ export default function Navbar() {
               <span>{t('dashboard')}</span>
             </Link>
           )}
+          <Link
+            href="/vendor"
+            className={`px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5 ${
+              pathname.startsWith('/vendor')
+                ? 'text-amber-800 bg-amber-50 font-bold'
+                : 'hover:text-gray-900 hover:bg-gray-50 text-amber-700'
+            }`}
+          >
+            <span>🏪</span>
+            <span>{t('vendorPortal')}</span>
+          </Link>
+          <Link
+            href="/admin"
+            className={`px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5 ${
+              pathname.startsWith('/admin')
+                ? 'text-slate-900 bg-slate-100 font-bold'
+                : 'hover:text-gray-900 hover:bg-gray-50 text-slate-600'
+            }`}
+          >
+            <ShieldCheck className="w-4 h-4 text-emerald-600" />
+            <span>{t('adminPortal')}</span>
+          </Link>
         </div>
 
         {/* Right Actions: Language Switcher & Auth */}
@@ -187,6 +209,20 @@ export default function Navbar() {
             className="block px-3 py-2 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50"
           >
             {t('products')}
+          </Link>
+          <Link
+            href="/vendor"
+            onClick={() => setMobileMenuOpen(false)}
+            className="block px-3 py-2 rounded-lg text-sm font-semibold text-amber-800 bg-amber-50/60"
+          >
+            🏪 {t('vendorPortal')}
+          </Link>
+          <Link
+            href="/admin"
+            onClick={() => setMobileMenuOpen(false)}
+            className="block px-3 py-2 rounded-lg text-sm font-semibold text-slate-800 bg-slate-100/60"
+          >
+            🛡️ {t('adminPortal')}
           </Link>
           {user ? (
             <>
