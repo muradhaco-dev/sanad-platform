@@ -144,3 +144,30 @@ USING (
         WHERE profiles.id = auth.uid() AND profiles.role = 'admin'
     )
 );
+
+-- 6. Order Items Table (Multi-Vendor Breakdown)
+CREATE TABLE IF NOT EXISTS public.order_items (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    order_id TEXT NOT NULL,
+    product_id UUID REFERENCES public.products(id),
+    vendor_id UUID REFERENCES public.profiles(id) NOT NULL,
+    quantity INTEGER NOT NULL DEFAULT 1,
+    unit_price NUMERIC(10, 2) NOT NULL,
+    total_price NUMERIC(10, 2) NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.order_items ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Vendors can view their own order items"
+ON public.order_items FOR SELECT
+USING (auth.uid() = vendor_id);
+
+CREATE POLICY "Admins have full access to order items"
+ON public.order_items FOR ALL
+USING (
+    EXISTS (
+        SELECT 1 FROM public.profiles 
+        WHERE profiles.id = auth.uid() AND profiles.role = 'admin'
+    )
+);

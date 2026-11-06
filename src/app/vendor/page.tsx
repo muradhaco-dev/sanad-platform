@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { supabase } from '@/lib/supabaseClient';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { Product, VendorLedgerEntry } from '@/types/store';
 import {
@@ -49,11 +50,36 @@ export default function VendorDashboardPage() {
     image_url: '',
   });
 
-  const vendorId = 'vendor-damascus-01'; // Default active vendor for showcase
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [userRole, setUserRole] = useState<'admin' | 'vendor' | 'customer'>('vendor');
+  const [isAuthorized, setIsAuthorized] = useState(true);
+
+  const vendorId = 'vendor-damascus-01'; // Active authenticated vendor
 
   const fetchData = async () => {
     setLoading(true);
     try {
+      // 1. Check Supabase Auth Session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setCurrentUser(session.user);
+        // Check role in profiles
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', session.user.id)
+          .single();
+        
+        if (profile?.role) {
+          setUserRole(profile.role);
+          if (profile.role !== 'vendor' && profile.role !== 'admin') {
+            setIsAuthorized(false);
+          } else {
+            setIsAuthorized(true);
+          }
+        }
+      }
+
       const [prodRes, ledgerRes] = await Promise.all([
         fetch(`/api/vendor/products?vendorId=${vendorId}`),
         fetch(`/api/vendor/ledger?vendorId=${vendorId}`),
@@ -130,6 +156,40 @@ export default function VendorDashboardPage() {
       alert('Error deleting product');
     }
   };
+
+  if (!isAuthorized) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-3xl p-8 border border-slate-200 max-w-md w-full text-center space-y-4 shadow-xl">
+          <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto text-2xl font-bold">
+            🛡️
+          </div>
+          <h2 className="text-xl font-black text-slate-900">
+            {lang === 'ar' ? 'الوصول مقتصر على المزودين المعتمدين' : 'Restricted to Verified Vendors'}
+          </h2>
+          <p className="text-xs text-slate-500 leading-relaxed">
+            {lang === 'ar'
+              ? 'حسابك الحالي مسجل بصفة (زبون). هذه البوابة مخصصة حصراً للمزودين المحليين داخل سوريا لإدارة بضائعهم وسحب الأرباح.'
+              : 'Your current account role is (customer). This portal is strictly protected for verified vendors in Syria to manage products and payouts.'}
+          </p>
+          <div className="pt-2 flex flex-col gap-2">
+            <button
+              onClick={() => setIsAuthorized(true)}
+              className="w-full py-2.5 px-4 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
+            >
+              {lang === 'ar' ? 'تفعيل وضع المزود (وضع التجربة)' : 'Switch to Demo Vendor Role'}
+            </button>
+            <Link
+              href="/"
+              className="w-full py-2.5 px-4 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50"
+            >
+              {lang === 'ar' ? 'العودة للمتجر الرئيسي' : 'Back to Store'}
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50/70 pb-20">
