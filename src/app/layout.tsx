@@ -1,11 +1,13 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import './globals.css';
+import { LanguageProvider } from '@/lib/i18n/LanguageContext';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 
 export const metadata: Metadata = {
-  title: 'سَنَد | منصة دعم واحتياجات العائلات في سوريا',
-  description: 'منصة متكاملة تتيح للمغتربين السوريين شراء وتأمين الاحتياجات الأساسية (سلل غذائية، أدوية، مياه، وتدفئة) لعائلاتهم داخل سوريا بدفع آمن وتوصيل ميداني موثق.',
+  title: 'Sanad Store | Premium One-Time Essentials & Goods',
+  description: 'Clean, transparent one-time purchase e-commerce platform. Buy essential family packages, emergency medical kits, and power supplies with zero subscriptions.',
 };
 
 export default function RootLayout({
@@ -14,11 +16,19 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="ar" dir="rtl">
-      <body className="min-h-screen flex flex-col bg-gray-50 text-gray-900 font-sans antialiased selection:bg-emerald-500 selection:text-white">
-        <Navbar />
-        <main className="flex-1">{children}</main>
-        <Footer />
+    <html lang="en" dir="ltr" suppressHydrationWarning>
+      <body className="min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans antialiased selection:bg-emerald-500 selection:text-white">
+        <LanguageProvider>
+          <Suspense fallback={null}>
+            <Navbar />
+          </Suspense>
+          <main className="flex-1">
+            <Suspense fallback={null}>
+              {children}
+            </Suspense>
+          </main>
+          <Footer />
+        </LanguageProvider>
       </body>
     </html>
   );

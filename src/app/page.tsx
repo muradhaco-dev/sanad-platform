@@ -1,312 +1,247 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Service } from '@/types';
-import ServiceCard from '@/components/ServiceCard';
-import OrderModal from '@/components/OrderModal';
 import Link from 'next/link';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { STORE_PRODUCTS } from '@/lib/products';
+import LemonCheckoutButton from '@/components/LemonCheckoutButton';
 import {
-  Heart,
   ShieldCheck,
-  Zap,
-  Globe2,
-  Clock,
+  ShoppingBag,
+  ArrowRight,
   ArrowLeft,
+  Check,
+  Zap,
+  Sparkles,
+  Lock,
   Truck,
-  CheckCircle2,
-  Users,
-  Building2,
-  Send
+  Heart,
+  RotateCcw
 } from 'lucide-react';
 
 export default function HomePage() {
-  const [services, setServices] = useState<Service[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [selectedService, setSelectedService] = useState<Service | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [alertSuccess, setAlertSuccess] = useState<string | null>(null);
+  const { t, lang } = useLanguage();
 
-  useEffect(() => {
-    fetch('/api/services')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success) {
-          setServices(data.services);
-        }
-      })
-      .catch((err) => console.error(err));
-  }, []);
-
-  const filteredServices =
-    selectedCategory === 'all'
-      ? services
-      : services.filter((s) => s.category === selectedCategory);
-
-  const handleSelectService = (service: Service) => {
-    setSelectedService(service);
-    setIsModalOpen(true);
-  };
-
-  const handleOrderSuccess = (orderId: string) => {
-    setAlertSuccess(`تم تسجيل طلبك بنجاح برقم #${orderId}. يمكنك متابعته الآن في لوحة التحكم.`);
-    setTimeout(() => setAlertSuccess(null), 8000);
-  };
+  const featuredProducts = STORE_PRODUCTS.filter((p) => p.is_featured);
 
   return (
-    <div className="min-h-screen bg-gray-50/50" dir="rtl">
-      {/* Alert Banner upon order creation */}
-      {alertSuccess && (
-        <div className="sticky top-16 z-50 bg-emerald-600 text-white py-3 px-4 shadow-md text-center text-sm font-bold flex items-center justify-center gap-2 animate-in slide-in-from-top">
-          <CheckCircle2 className="w-5 h-5 text-emerald-200" />
-          <span>{alertSuccess}</span>
-          <Link
-            href="/dashboard/expatriate"
-            className="underline underline-offset-4 mr-2 bg-emerald-700 hover:bg-emerald-800 px-3 py-1 rounded-lg text-xs"
-          >
-            الانتقال للوحة المغترب ←
-          </Link>
-        </div>
-      )}
-
+    <div className="min-h-screen bg-slate-50/50">
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-emerald-900 via-emerald-800 to-emerald-900 text-white py-20 px-4 sm:px-6 lg:px-8">
-        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:16px_16px]"></div>
-        
-        <div className="relative max-w-5xl mx-auto text-center space-y-6">
-          <div className="inline-flex items-center gap-2 bg-emerald-700/80 border border-emerald-500/30 px-3.5 py-1.5 rounded-full text-xs font-semibold text-emerald-200">
-            <Heart className="w-3.5 h-3.5 text-rose-400 fill-rose-400" />
-            <span>المنصة الأولى المخصصة لاحتياجات العائلات في سوريا</span>
+      <section className="relative overflow-hidden bg-slate-950 text-white py-24 sm:py-32 px-4 sm:px-6 lg:px-8">
+        <div className="absolute inset-0 opacity-15 bg-[radial-gradient(#10b981_1px,transparent_1px)] [background-size:20px_20px]"></div>
+
+        <div className="relative max-w-4xl mx-auto text-center space-y-6">
+          {/* Hero Badge */}
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold shadow-xs">
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>{t('heroBadge')}</span>
           </div>
 
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-tight">
-            سَنَد .. يدك التي تصل لأهلك <br />
-            <span className="text-emerald-300">بكل أمان وموثوقية</span>
+          <h1 className="text-4xl sm:text-6xl font-black tracking-tight leading-tight sm:leading-tight">
+            {t('heroTitle')}
           </h1>
 
-          <p className="max-w-2xl mx-auto text-base sm:text-lg text-emerald-100/90 leading-relaxed">
-            لا داعي للقلق بشأن الحوالات المعقدة أو انقطاع الخدمات. اختر السلة الغذائية، الأدوية، المياه أو وقود التدفئة، وادفع بالدولار ببطاقتك البنكية، ليتولى فريقنا الميداني في سوريا التسليم المباشر.
+          <p className="max-w-2xl mx-auto text-base sm:text-lg text-slate-300 leading-relaxed">
+            {t('heroSubtitle')}
           </p>
 
+          {/* Hero CTA buttons */}
           <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
-            <a
-              href="#services"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white text-emerald-900 hover:bg-emerald-50 px-6 py-3.5 rounded-xl font-bold text-sm shadow-lg hover:shadow-xl transition-all"
+            <Link
+              href="/products"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-slate-950 font-black px-8 py-4 rounded-xl text-sm shadow-lg hover:shadow-xl transition-all cursor-pointer"
             >
-              <span>تصفح باقات الاحتياجات</span>
-              <ArrowLeft className="w-4 h-4" />
-            </a>
+              <span>{t('shopNow')}</span>
+              {lang === 'ar' ? <ArrowLeft className="w-4 h-4" /> : <ArrowRight className="w-4 h-4" />}
+            </Link>
 
             <Link
-              href="/dashboard/expatriate"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-emerald-700/60 hover:bg-emerald-700 border border-emerald-500/40 text-white px-6 py-3.5 rounded-xl font-bold text-sm transition-all"
+              href="/dashboard"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-white px-6 py-4 rounded-xl font-bold text-sm transition cursor-pointer"
             >
-              <Globe2 className="w-4 h-4" />
-              <span>لوحة المغترب والطلبات النشطة</span>
+              <ShoppingBag className="w-4 h-4 text-emerald-400" />
+              <span>{t('orders')}</span>
             </Link>
           </div>
 
-          {/* Quick Metrics */}
-          <div className="pt-10 grid grid-cols-2 md:grid-cols-4 gap-4 text-center border-t border-emerald-700/50 mt-10">
-            <div className="p-3">
-              <div className="text-2xl sm:text-3xl font-extrabold text-white">+1,200</div>
-              <div className="text-xs text-emerald-200/80 mt-1">طلب تم تسليمه بنجاح</div>
+          {/* Quick Trust Highlights */}
+          <div className="pt-12 grid grid-cols-1 sm:grid-cols-3 gap-4 border-t border-slate-800/80 mt-12 text-xs text-slate-400">
+            <div className="flex items-center justify-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-emerald-400" />
+              <span>{lang === 'ar' ? 'بدون أي اشتراكات دورية' : 'Zero Recurring Subscriptions'}</span>
             </div>
-            <div className="p-3">
-              <div className="text-2xl sm:text-3xl font-extrabold text-white">10</div>
-              <div className="text-xs text-emerald-200/80 mt-1">محافظات ومدن مشمولة</div>
+            <div className="flex items-center justify-center gap-2">
+              <Lock className="w-4 h-4 text-emerald-400" />
+              <span>{lang === 'ar' ? 'تاجر مسجل رسمي (Lemon Squeezy)' : 'Authorized Merchant of Record'}</span>
             </div>
-            <div className="p-3">
-              <div className="text-2xl sm:text-3xl font-extrabold text-white">24 ساعة</div>
-              <div className="text-xs text-emerald-200/80 mt-1">متوسط وقت التسليم الميداني</div>
-            </div>
-            <div className="p-3">
-              <div className="text-2xl sm:text-3xl font-extrabold text-white">100%</div>
-              <div className="text-xs text-emerald-200/80 mt-1">توثيق بالصور وتأكيد المستلم</div>
+            <div className="flex items-center justify-center gap-2">
+              <Truck className="w-4 h-4 text-emerald-400" />
+              <span>{lang === 'ar' ? 'توصيل ميداني مباشر خلال 24 ساعة' : 'Direct 24-48h Field Fulfillment'}</span>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Gateway Cards: Choose Your Interface */}
+      {/* 3 Pillars / Conversion Features */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-10 relative z-20">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Expatriate Gateway */}
-          <div className="bg-white rounded-2xl p-6 shadow-xl border-2 border-emerald-500/80 flex flex-col justify-between hover:shadow-2xl transition-all">
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-bold bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full">
-                  المغترب السوري (خارج الوطن)
-                </span>
-                <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 font-bold">
-                  👤
-                </div>
-              </div>
-              <h3 className="text-xl font-black text-gray-900 mb-2">لوحة تحكم المغترب</h3>
-              <p className="text-xs text-gray-600 leading-relaxed mb-4">
-                تصفح الباقات، تقديم طلب جديد، الدفع بالدولار عبر البطاقة، ومتابعة شريط تقدم التوصيل للأهل في سوريا لحظة بلحظة.
-              </p>
-            </div>
-            <Link
-              href="/dashboard/expatriate"
-              className="w-full inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-bold text-sm shadow transition"
-            >
-              <span>فتح لوحة تحكم المغترب</span>
-              <ArrowLeft className="w-4 h-4" />
-            </Link>
-          </div>
-
-          {/* Provider Gateway */}
-          <div className="bg-white rounded-2xl p-6 shadow-xl border-2 border-amber-500/80 flex flex-col justify-between hover:shadow-2xl transition-all">
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-bold bg-amber-100 text-amber-900 px-3 py-1 rounded-full">
-                  مزود الخدمة الميداني (داخل سوريا)
-                </span>
-                <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600 font-bold">
-                  🚚
-                </div>
-              </div>
-              <h3 className="text-xl font-black text-gray-900 mb-2">لوحة تحكم المزود المحلي</h3>
-              <p className="text-xs text-gray-600 leading-relaxed mb-4">
-                خاصة بالمزود في دمشق وحلب والمحافظات: استلام الطلبات المدفوعة، الاتصال بالمستلم عبر واتساب أو الهاتف، وتأكيد التسليم.
-              </p>
-            </div>
-            <Link
-              href="/dashboard/provider"
-              className="w-full inline-flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-700 text-white py-3 rounded-xl font-bold text-sm shadow transition"
-            >
-              <span>فتح لوحة مزود الخدمة (سوريا)</span>
-              <ArrowLeft className="w-4 h-4" />
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* How it works */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-        <div className="text-center max-w-2xl mx-auto mb-12">
-          <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
-            بساطة وسرعة
-          </span>
-          <h2 className="text-2xl sm:text-3xl font-black text-gray-900 mt-2">
-            كيف تعمل منصة سَنَد في 3 خطوات؟
-          </h2>
-          <p className="text-xs sm:text-sm text-gray-500 mt-2">
-            صممنا المنصة لتختصر وقتك وتوفر لعائلتك أقصى درجات الاهتمام دون عناء
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div className="bg-white p-6 rounded-2xl border border-gray-200/80 shadow-xs relative">
-            <div className="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-black text-xl mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-white rounded-3xl p-8 border border-slate-200/90 shadow-lg space-y-3">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-xl">
               1
             </div>
-            <h3 className="text-base font-bold text-gray-900 mb-2">اختر الباقة وحدد العنوان</h3>
-            <p className="text-xs text-gray-600 leading-relaxed">
-              تصفح السلات التموينية، باقات الأدوية المزمنة، صهاريج المياه، أو وقود التدفئة، وسجل اسم ورقم هاتف الأهل في سوريا.
-            </p>
+            <h3 className="text-lg font-black text-slate-900">{t('feature1Title')}</h3>
+            <p className="text-xs text-slate-600 leading-relaxed">{t('feature1Desc')}</p>
           </div>
 
-          <div className="bg-white p-6 rounded-2xl border border-gray-200/80 shadow-xs relative">
-            <div className="w-12 h-12 rounded-xl bg-blue-100 text-blue-800 flex items-center justify-center font-black text-xl mb-4">
+          <div className="bg-white rounded-3xl p-8 border border-slate-200/90 shadow-lg space-y-3">
+            <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xl">
               2
             </div>
-            <h3 className="text-base font-bold text-gray-900 mb-2">ادفع بالدولار بأمان تام</h3>
-            <p className="text-xs text-gray-600 leading-relaxed">
-              الدفع يتم عبر بوابة Lemon Squeezy الدولية ببطاقتك الائتمانية دون الحاجة لأي وساطة أو عمولات غير معلنة.
-            </p>
+            <h3 className="text-lg font-black text-slate-900">{t('feature2Title')}</h3>
+            <p className="text-xs text-slate-600 leading-relaxed">{t('feature2Desc')}</p>
           </div>
 
-          <div className="bg-white p-6 rounded-2xl border border-gray-200/80 shadow-xs relative">
-            <div className="w-12 h-12 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-black text-xl mb-4">
+          <div className="bg-white rounded-3xl p-8 border border-slate-200/90 shadow-lg space-y-3">
+            <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold text-xl">
               3
             </div>
-            <h3 className="text-base font-bold text-gray-900 mb-2">التسليم الميداني والتوثيق</h3>
-            <p className="text-xs text-gray-600 leading-relaxed">
-              يصل إشعار آلي فوري عبر تيليغرام لمزود الخدمة المحلي في دمشق أو حلب أو المحافظة المعنية للبدء بالتجهيز والتسليم لباب المنزل.
-            </p>
+            <h3 className="text-lg font-black text-slate-900">{t('feature3Title')}</h3>
+            <p className="text-xs text-slate-600 leading-relaxed">{t('feature3Desc')}</p>
           </div>
         </div>
       </section>
 
-      {/* Services Section */}
-      <section id="services" className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-gray-200/60">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
+      {/* Featured Products Showcase */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-12">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div>
-            <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
-              الباقات المتوفرة حالياً
-            </span>
-            <h2 className="text-2xl sm:text-3xl font-black text-gray-900 mt-2">
-              باقات الدعم والاحتياجات الأساسية
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 text-xs font-bold mb-2 border border-emerald-200">
+              <ShoppingBag className="w-3.5 h-3.5" />
+              <span>{t('oneTimePayment')}</span>
+            </div>
+            <h2 className="text-3xl font-black text-slate-900 tracking-tight">
+              {t('featuredProducts')}
             </h2>
-            <p className="text-xs sm:text-sm text-gray-500 mt-1">
-              الأسعار بالدولار محددة بدقة وفق تكاليف التجهيز والتوصيل الميداني
+            <p className="text-xs text-slate-500 mt-1">
+              {lang === 'ar'
+                ? 'اختر الباقة المطلوبة واطلبها بضغطة زر واحدة وآمنة'
+                : 'Select your package and checkout with a single transparent payment'}
             </p>
           </div>
 
-          {/* Category Filter Pills */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-2 md:pb-0 text-xs">
-            {[
-              { id: 'all', label: 'الكل' },
-              { id: 'food', label: 'سلل غذائية' },
-              { id: 'health', label: 'أدوية وصحة' },
-              { id: 'water', label: 'مياه شرب' },
-              { id: 'energy', label: 'طاقة وتدفئة' },
-              { id: 'emergency', label: 'أطفال وطوارئ' }
-            ].map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => setSelectedCategory(cat.id)}
-                className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition-all ${
-                  selectedCategory === cat.id
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
-                }`}
-              >
-                {cat.label}
-              </button>
-            ))}
-          </div>
+          <Link
+            href="/products"
+            className="text-xs font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 underline underline-offset-4"
+          >
+            <span>{t('viewAll')}</span>
+            {lang === 'ar' ? <ArrowLeft className="w-3.5 h-3.5" /> : <ArrowRight className="w-3.5 h-3.5" />}
+          </Link>
         </div>
 
-        {/* Services Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredServices.map((service) => (
-            <ServiceCard
-              key={service.id}
-              service={service}
-              onSelect={handleSelectService}
-            />
-          ))}
+        {/* Products Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {featuredProducts.map((product) => {
+            const title = lang === 'ar' ? product.title_ar : product.title_en;
+            const desc = lang === 'ar' ? product.description_ar : product.description_en;
+            const badge = lang === 'ar' ? product.badge_ar : product.badge_en;
+            const items = lang === 'ar' ? product.items_ar : product.items_en;
+
+            return (
+              <div
+                key={product.id}
+                className="bg-white rounded-3xl border border-slate-200/90 overflow-hidden shadow-xs hover:shadow-xl transition-all duration-300 flex flex-col justify-between group"
+              >
+                <div>
+                  <div className="relative h-56 w-full overflow-hidden bg-slate-100">
+                    <img
+                      src={product.image_url}
+                      alt={title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                    {badge && (
+                      <span className="absolute top-4 end-4 bg-emerald-600 text-white text-[11px] font-bold px-3 py-1 rounded-full shadow-md">
+                        {badge}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="p-6">
+                    <h3 className="text-lg font-bold text-slate-900 group-hover:text-emerald-700 transition-colors mb-2">
+                      <Link href={`/products/${product.slug}`}>{title}</Link>
+                    </h3>
+                    <p className="text-xs text-slate-500 leading-relaxed mb-4 line-clamp-2">
+                      {desc}
+                    </p>
+
+                    <div className="border-t border-slate-100 pt-3 space-y-1.5">
+                      <div className="text-[11px] font-bold text-slate-700 mb-1">
+                        {t('whatsIncluded')}:
+                      </div>
+                      {items.slice(0, 3).map((item, idx) => (
+                        <div key={idx} className="flex items-start gap-1.5 text-xs text-slate-600">
+                          <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                          <span className="line-clamp-1">{item}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-6 bg-slate-50/70 border-t border-slate-100 space-y-3">
+                  <div className="flex items-baseline justify-between">
+                    <div>
+                      <div className="text-2xl font-black text-slate-900">${product.price_usd} USD</div>
+                      <div className="text-[10px] text-emerald-700 font-bold">{t('oneTimePayment')}</div>
+                    </div>
+                    <Link
+                      href={`/products/${product.slug}`}
+                      className="text-xs font-bold text-slate-600 hover:text-emerald-700 underline underline-offset-4"
+                    >
+                      {t('details')} →
+                    </Link>
+                  </div>
+
+                  {/* Lemon Squeezy One-Time Checkout Overlay */}
+                  <LemonCheckoutButton
+                    productId={product.id}
+                    productName={title}
+                    priceUSD={product.price_usd}
+                    variantId={product.lemon_variant_id}
+                  />
+                </div>
+              </div>
+            );
+          })}
         </div>
       </section>
 
       {/* Trust & Guarantee Banner */}
-      <section className="py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-        <div className="bg-gradient-to-r from-emerald-800 to-teal-800 rounded-3xl p-8 text-white flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl">
-          <div className="space-y-2 text-center md:text-right">
-            <h3 className="text-xl sm:text-2xl font-black">هل لديك طلب خاص أو حاجة لعائلة معينة؟</h3>
-            <p className="text-xs sm:text-sm text-emerald-100">
-              فريق سَنَد الميداني يمكنه تأمين متطلبات خاصة (أجهزة طبية، بطاريات إنفرتر، صيانة منازل) بالتنسيق المباشر.
+      <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+        <div className="bg-gradient-to-r from-emerald-900 via-slate-900 to-emerald-950 rounded-3xl p-8 sm:p-12 text-white flex flex-col md:flex-row items-center justify-between gap-8 shadow-2xl border border-emerald-800/40">
+          <div className="space-y-3 text-center md:text-start max-w-2xl">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-bold">
+              <ShieldCheck className="w-4 h-4" />
+              <span>{t('satisfactionGuarantee')}</span>
+            </div>
+            <h3 className="text-2xl sm:text-3xl font-black">
+              {lang === 'ar'
+                ? 'شراء آمن ومضمون 100% مع ضمان استرداد الأموال'
+                : '100% Risk-Free Guarantee with Full Purchase Protection'}
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+              {lang === 'ar'
+                ? 'جميع الطلبات محمية بواسطة Lemon Squeezy (Merchant of Record). في حال تعذر التوصيل الميداني، يُعاد المبلغ بالكامل لبطاقتك في غضون أيام عمل قليلة.'
+                : 'All transactions are backed by Lemon Squeezy Merchant of Record with a 14-day refund policy. If field fulfillment cannot be completed, you receive a full refund directly to your original card.'}
             </p>
           </div>
+
           <Link
-            href="/dashboard/expatriate"
-            className="inline-flex items-center gap-2 bg-white text-emerald-900 hover:bg-emerald-50 px-5 py-3 rounded-xl font-bold text-xs shadow transition shrink-0"
+            href="/products"
+            className="shrink-0 bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 text-slate-950 px-8 py-4 rounded-xl font-black text-sm shadow-lg hover:shadow-xl transition cursor-pointer"
           >
-            <span>تقديم طلب مخصص عبر لوحة المغترب</span>
-            <ArrowLeft className="w-4 h-4" />
+            <span>{t('shopNow')}</span>
           </Link>
         </div>
       </section>
-
-      {/* Order Modal */}
-      <OrderModal
-        service={selectedService}
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onOrderSuccess={handleOrderSuccess}
-      />
     </div>
   );
 }
