@@ -26,6 +26,7 @@ export default function Navbar() {
   const [user, setUser] = useState<any>(null);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [avatarError, setAvatarError] = useState(false);
 
   // Helper to fetch user's strict role from Supabase database profiles table
   const fetchUserRole = async (userId: string, metadataRole?: string) => {
@@ -44,8 +45,8 @@ export default function Navbar() {
       console.warn('Error fetching role from Supabase profiles:', err);
     }
 
-    // Fallback to metadata role if profiles row is not queried
-    if (metadataRole === 'admin' || metadataRole === 'vendor' || metadataRole === 'customer') {
+    // Fallback to metadata role if profiles row query is delayed or not yet populated
+    if (metadataRole === 'admin' || metadataRole === 'vendor') {
       setUserRole(metadataRole as UserRole);
     } else {
       setUserRole('customer');
@@ -57,6 +58,7 @@ export default function Navbar() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       const currentUser = session?.user ?? null;
       setUser(currentUser);
+      setAvatarError(false);
       if (currentUser) {
         fetchUserRole(currentUser.id, currentUser.user_metadata?.role);
       } else {
@@ -70,6 +72,7 @@ export default function Navbar() {
     } = supabase.auth.onAuthStateChange((_event, session) => {
       const currentUser = session?.user ?? null;
       setUser(currentUser);
+      setAvatarError(false);
       if (currentUser) {
         fetchUserRole(currentUser.id, currentUser.user_metadata?.role);
       } else {
@@ -91,6 +94,8 @@ export default function Navbar() {
   const googleAvatarUrl =
     user?.user_metadata?.avatar_url ||
     user?.user_metadata?.picture ||
+    user?.identities?.[0]?.identity_data?.avatar_url ||
+    user?.identities?.[0]?.identity_data?.picture ||
     null;
 
   const displayName =
@@ -219,11 +224,12 @@ export default function Navbar() {
                 className="inline-flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-800 hover:bg-emerald-100 px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-2xs"
               >
                 {/* 1. Google Avatar or User icon */}
-                {googleAvatarUrl ? (
+                {googleAvatarUrl && !avatarError ? (
                   <img
                     src={googleAvatarUrl}
                     alt={displayName}
                     referrerPolicy="no-referrer"
+                    onError={() => setAvatarError(true)}
                     className="w-5 h-5 rounded-full object-cover ring-1.5 ring-emerald-500 shrink-0"
                   />
                 ) : (
@@ -316,11 +322,12 @@ export default function Navbar() {
                 onClick={() => setMobileMenuOpen(false)}
                 className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold text-emerald-700 bg-emerald-50"
               >
-                {googleAvatarUrl ? (
+                {googleAvatarUrl && !avatarError ? (
                   <img
                     src={googleAvatarUrl}
                     alt={displayName}
                     referrerPolicy="no-referrer"
+                    onError={() => setAvatarError(true)}
                     className="w-5 h-5 rounded-full object-cover ring-1 ring-emerald-500 shrink-0"
                   />
                 ) : (
