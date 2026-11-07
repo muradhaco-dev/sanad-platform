@@ -183,7 +183,7 @@ export default function Navbar() {
               }`}
             >
               <Store className="w-4 h-4 text-amber-600" />
-              <span>{t('vendorPortal')}</span>
+              <span>{lang === 'ar' ? 'لوحة التاجر' : 'Vendor Dashboard'}</span>
             </Link>
           )}
 
@@ -215,6 +215,17 @@ export default function Navbar() {
             <Globe className="w-3.5 h-3.5 text-emerald-600" />
             <span>{t('langToggle')}</span>
           </button>
+
+          {/* Prominent Vendor Dashboard Button (ONLY for vendor role) */}
+          {user && userRole === 'vendor' && (
+            <Link
+              href="/vendor"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-black shadow-xs hover:shadow transition"
+            >
+              <Store className="w-3.5 h-3.5 text-amber-200" />
+              <span>{lang === 'ar' ? 'لوحة التاجر' : 'Vendor Dashboard'}</span>
+            </Link>
+          )}
 
           {/* User Auth Buttons with Google Profile Picture Avatar */}
           {user ? (
@@ -298,9 +309,10 @@ export default function Navbar() {
             <Link
               href="/vendor"
               onClick={() => setMobileMenuOpen(false)}
-              className="block px-3 py-2 rounded-lg text-sm font-semibold text-amber-800 bg-amber-50/70"
+              className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-bold text-amber-900 bg-amber-50 border border-amber-200"
             >
-              🏪 {t('vendorPortal')}
+              <Store className="w-4 h-4 text-amber-600" />
+              <span>{lang === 'ar' ? 'لوحة التاجر' : 'Vendor Dashboard'}</span>
             </Link>
           )}
 
