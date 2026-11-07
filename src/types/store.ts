@@ -25,6 +25,9 @@ export interface Product {
   badge_en?: string;
   badge_ar?: string;
   image_url: string;
+  latitude?: number;
+  longitude?: number;
+  location_name?: string;
   items_en: string[];
   items_ar: string[];
   specs_en: Record<string, string>;
@@ -56,6 +59,55 @@ export interface SavedPaymentCard {
   exp_month: number;
   exp_year: number;
   is_default: boolean;
+}
+
+export interface VendorPayoutMethod {
+  id: string;
+  vendor_id: string;
+  method_name: string; // 'Cham Cash' | 'Syriatel Cash' | 'Al-Haram' | 'Bank of Syria and Overseas' | string
+  account_number: string;
+  account_holder_name: string;
+  phone_number?: string;
+  notes?: string;
+  is_default: boolean;
+  created_at: string;
+}
+
+export interface WithdrawalRequest {
+  id: string;
+  vendor_id: string;
+  vendor_name?: string;
+  store_name?: string;
+  amount: number;
+  status: 'pending' | 'paid' | 'rejected';
+  payout_method_id?: string;
+  payout_method?: VendorPayoutMethod;
+  transaction_ref?: string;
+  admin_notes?: string;
+  created_at: string;
+  paid_at?: string;
+  settled_by?: string;
+}
+
+export interface VendorOrderItem {
+  id: string;
+  order_id: string;
+  order_number: string;
+  product_id: string;
+  product_title: string;
+  vendor_id: string;
+  customer_name: string;
+  customer_email: string;
+  customer_phone?: string;
+  delivery_address?: string;
+  city?: string;
+  quantity: number;
+  unit_price: number;
+  total_price: number;
+  platform_fee: number; // 10%
+  net_vendor_amount: number;
+  status: 'paid' | 'processing' | 'shipped' | 'delivered';
+  created_at: string;
 }
 
 export interface VendorLedgerEntry {

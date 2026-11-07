@@ -13,7 +13,9 @@ import {
   ArrowRight,
   PackageCheck,
   Lock,
-  Sparkles
+  Sparkles,
+  Store,
+  MapPin,
 } from 'lucide-react';
 
 export default function ProductDetailClient({ product }: { product: Product }) {
@@ -69,6 +71,29 @@ export default function ProductDetailClient({ product }: { product: Product }) {
                 <p className="text-sm text-slate-600 leading-relaxed">
                   {desc}
                 </p>
+
+                {/* Vendor & Store Dispatch Location */}
+                {(product.vendor_name || product.location_name) && (
+                  <div className="p-3 bg-amber-50/70 border border-amber-200/80 rounded-2xl flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2">
+                      <Store className="w-4 h-4 text-amber-700 shrink-0" />
+                      <div>
+                        <span className="font-bold text-amber-950">{product.vendor_name || 'تاجر محلي معتمد'}</span>
+                        {product.location_name && (
+                          <p className="text-[11px] text-amber-900/80 flex items-center gap-1 mt-0.5 font-medium">
+                            <MapPin className="w-3 h-3 text-amber-700 shrink-0" />
+                            <span>{product.location_name}</span>
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    {product.latitude && product.longitude && (
+                      <span className="text-[10px] bg-white px-2 py-0.5 rounded-md font-mono text-amber-800 border border-amber-200 shrink-0">
+                        {product.latitude.toFixed(2)}, {product.longitude.toFixed(2)}
+                      </span>
+                    )}
+                  </div>
+                )}
 
                 {/* Price Display */}
                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex items-center justify-between">

@@ -2,328 +2,540 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { supabase } from '@/lib/supabaseClient';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { VendorPayoutSummary } from '@/types/store';
 import {
-  ShieldAlert,
+  WithdrawalRequest,
+  VendorPayoutSummary,
+  UserRole,
+} from '@/types/store';
+import {
   ShieldCheck,
+  ShieldAlert,
   CheckCircle2,
+  Clock,
   DollarSign,
   Building2,
   Phone,
-  MapPin,
-  Clock,
+  CreditCard,
+  X,
+  Loader2,
+  FileCheck2,
   ArrowRight,
   RefreshCw,
-  Loader2,
-  FileCheck2
+  Search,
+  Filter,
 } from 'lucide-react';
 
 export default function AdminPayoutDashboardPage() {
   const { t, lang } = useLanguage();
 
+  // Auth & RBAC State
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [userRole, setUserRole] = useState<UserRole | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
+
+  // Data State
+  const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([]);
   const [vendors, setVendors] = useState<VendorPayoutSummary[]>([]);
+  const [stats, setStats] = useState({
+    pendingCount: 0,
+    pendingTotal: 0,
+    paidTotal: 0,
+    totalRequests: 0,
+  });
   const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [successToast, setSuccessToast] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'paid'>('all');
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Settle modal state
-  const [settlingVendor, setSettlingVendor] = useState<VendorPayoutSummary | null>(null);
-  const [payoutNote, setPayoutNote] = useState('');
+  // Settlement Modal State
+  const [selectedWithdrawal, setSelectedWithdrawal] = useState<WithdrawalRequest | null>(null);
+  const [transactionRef, setTransactionRef] = useState('');
+  const [adminNotes, setAdminNotes] = useState('');
 
-  const fetchVendors = async () => {
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 5000);
+  };
+
+  // 1. Strict Admin Authentication & Role Verification
+  useEffect(() => {
+    const checkAdminAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const user = session?.user ?? null;
+        setCurrentUser(user);
+
+        if (user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .single();
+
+          const role = profile?.role || (user.user_metadata?.role as UserRole) || 'customer';
+          setUserRole(role);
+        } else {
+          setUserRole(null);
+        }
+      } catch (err) {
+        console.warn('Error verifying admin role:', err);
+      } finally {
+        setAuthChecked(true);
+      }
+    };
+
+    checkAdminAuth();
+  }, []);
+
+  // 2. Fetch Admin Payout Requests & Vendor Ledger
+  const fetchAdminData = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/payouts');
+      const res = await fetch('/api/admin/withdrawals');
       const data = await res.json();
       if (data.success) {
+        setWithdrawals(data.withdrawals);
         setVendors(data.vendors);
+        setStats(data.stats);
       }
     } catch (err) {
-      console.error('Error fetching admin data:', err);
+      console.error('Failed to load admin data:', err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchVendors();
-  }, []);
+    if (authChecked && userRole === 'admin') {
+      fetchAdminData();
+    } else if (authChecked) {
+      setLoading(false);
+    }
+  }, [authChecked, userRole]);
 
-  const handleSettleSubmit = async () => {
-    if (!settlingVendor) return;
-    setActionLoading(settlingVendor.vendor_id);
+  // Open Settle Modal
+  const handleOpenSettleModal = (withdrawal: WithdrawalRequest) => {
+    setSelectedWithdrawal(withdrawal);
+    setTransactionRef(`SY-TXN-${Date.now().toString().slice(-6)}`);
+    setAdminNotes(
+      lang === 'ar'
+        ? `تم التحويل عبر ${withdrawal.payout_method?.method_name || 'شام كاش'} إلى حساب (${withdrawal.payout_method?.account_holder_name || withdrawal.vendor_name})`
+        : `Remitted via ${withdrawal.payout_method?.method_name || 'Cham Cash'}`
+    );
+  };
 
+  // Submit Settlement
+  const handleConfirmSettle = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedWithdrawal || !transactionRef) {
+      alert(lang === 'ar' ? 'يرجى إدخال رقم إشعار الحوالة' : 'Transaction reference required');
+      return;
+    }
+
+    setActionLoading(true);
     try {
-      const res = await fetch('/api/admin/payouts', {
+      const res = await fetch('/api/admin/withdrawals', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          vendor_id: settlingVendor.vendor_id,
-          payout_note: payoutNote || 'تم تسليم المبلغ كاش بموجب إشعار حوالة داخلية في سوريا',
+          withdrawal_id: selectedWithdrawal.id,
+          transaction_ref: transactionRef,
+          notes: adminNotes,
+          admin_id: currentUser?.id || 'admin-syria-hq',
         }),
       });
 
       const data = await res.json();
       if (data.success) {
-        setVendors(data.vendors);
-        setSuccessToast(`تمت تسوية مبلغ $${data.settledAmount} USD للمزود (${settlingVendor.store_name}) بنجاح!`);
-        setTimeout(() => setSuccessToast(null), 6000);
-        setSettlingVendor(null);
-        setPayoutNote('');
+        showToast(
+          lang === 'ar'
+            ? `تم تسوية طلب السحب بنجاح بمبلغ $${selectedWithdrawal.amount.toFixed(2)} USD وإشعار التاجر برقم الحوالة!`
+            : `Withdrawal of $${selectedWithdrawal.amount.toFixed(2)} marked as Paid successfully!`
+        );
+        setSelectedWithdrawal(null);
+        fetchAdminData();
       } else {
-        alert(data.error || 'Failed to settle balance');
+        alert(data.error || 'Failed to settle withdrawal');
       }
     } catch (err) {
       alert('Error connecting to server');
     } finally {
-      setActionLoading(null);
+      setActionLoading(false);
     }
   };
 
-  const totalPlatformGross = vendors.reduce((sum, v) => sum + v.total_gross_sales, 0);
-  const totalPlatformCommissions = vendors.reduce((sum, v) => sum + v.total_platform_fees, 0);
-  const totalPendingPayouts = vendors.reduce((sum, v) => sum + v.pending_balance, 0);
+  // Filtered withdrawals
+  const filteredWithdrawals = withdrawals.filter((w) => {
+    if (statusFilter === 'all') return true;
+    return w.status === statusFilter;
+  });
 
-  return (
-    <div className="min-h-screen bg-slate-50/70 pb-20">
-      {/* Toast Alert */}
-      {successToast && (
-        <div className="sticky top-16 z-50 bg-emerald-700 text-white py-3 px-4 shadow-lg text-center text-xs font-bold flex items-center justify-center gap-2 animate-in slide-in-from-top">
-          <CheckCircle2 className="w-4 h-4 text-emerald-300" />
-          <span>{successToast}</span>
-        </div>
-      )}
-
-      {/* Admin Top Banner */}
-      <div className="bg-slate-900 text-white py-8 px-4 sm:px-6 lg:px-8 border-b border-slate-800">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-bold text-amber-400 mb-1">
-              <ShieldAlert className="w-4 h-4" />
-              <span>{t('adminPortal')} • منصة سَنَد للتجارة متعددة البائعين</span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
-              {t('adminDashboardTitle')}
-            </h1>
-            <p className="text-xs text-slate-400 mt-1">
-              {t('adminDashboardSubtitle')}
-            </p>
+  // Strict Protection Screen
+  if (authChecked && userRole !== 'admin') {
+    return (
+      <div className="min-h-[75vh] flex items-center justify-center px-4 py-16 bg-slate-50">
+        <div className="max-w-md w-full bg-white rounded-3xl p-8 border border-rose-200 text-center shadow-lg space-y-4">
+          <div className="w-16 h-16 rounded-2xl bg-rose-100 text-rose-700 flex items-center justify-center mx-auto">
+            <ShieldAlert className="w-8 h-8" />
           </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={fetchVendors}
-              className="inline-flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 px-3.5 py-2 rounded-xl text-xs font-bold transition border border-slate-700"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-              <span>تحديث الأرصدة</span>
-            </button>
-
+          <h2 className="text-xl font-black text-gray-900">
+            {lang === 'ar' ? 'منطقة محظورة - للإدارة فقط' : 'Access Restricted - Admin Only'}
+          </h2>
+          <p className="text-xs text-gray-500 leading-relaxed">
+            {lang === 'ar'
+              ? 'هذه اللوحة مخصصة فقط لمدير المنصة في سوريا لتسوية الحوالات اليدوية (Offline Payouts) واعتماد أرقام إشعارات شام كاش.'
+              : 'This portal is restricted to platform administrators to settle offline remittances and track vendor ledger liabilities.'}
+          </p>
+          <div className="pt-2">
             <Link
-              href="/vendor"
-              className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-xs transition"
+              href="/"
+              className="inline-flex items-center justify-center px-6 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-md transition"
             >
-              <span>{t('vendorPortal')}</span>
-              <span>→</span>
+              {lang === 'ar' ? 'العودة للرئيسية' : 'Return Home'}
             </Link>
           </div>
         </div>
       </div>
+    );
+  }
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
-        {/* Metric Cards: Platform Revenue & Payouts */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-8">
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
-            <div className="text-xs font-bold text-slate-400">إجمالي مبيعات الماركت بليس</div>
-            <div className="text-2xl font-black text-slate-900 mt-1">${totalPlatformGross.toFixed(2)} USD</div>
-            <div className="text-[11px] text-slate-500 mt-0.5">مبيعات المغتربين المدفوعة بالكامل</div>
-          </div>
-
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
-            <div className="text-xs font-bold text-slate-400">صافي إيرادات عمولة المنصة (10%)</div>
-            <div className="text-2xl font-black text-emerald-700 mt-1">${totalPlatformCommissions.toFixed(2)} USD</div>
-            <div className="text-[11px] text-emerald-600 font-semibold mt-0.5">أرباح سَنَد الصافية المقتطعة</div>
-          </div>
-
-          <div className="bg-white p-5 rounded-2xl border-2 border-amber-400 shadow-xs bg-amber-50/20">
-            <div className="text-xs font-bold text-amber-800 flex items-center justify-between">
-              <span>المستحقات المعلقة الواجب تسليمها كاش</span>
-              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
-            </div>
-            <div className="text-2xl font-black text-amber-700 mt-1">${totalPendingPayouts.toFixed(2)} USD</div>
-            <div className="text-[11px] text-amber-800 font-semibold mt-0.5">
-              ≈ {(totalPendingPayouts * 14800).toLocaleString('ar-SY')} ل.س بانتظار الحوالة
-            </div>
-          </div>
+  return (
+    <div className="min-h-screen bg-slate-50/70 pb-20">
+      {/* Toast Alert */}
+      {toastMessage && (
+        <div className="sticky top-16 z-50 bg-emerald-700 text-white py-3 px-4 shadow-lg text-center text-xs font-bold flex items-center justify-center gap-2 animate-in slide-in-from-top">
+          <CheckCircle2 className="w-4 h-4 text-emerald-300" />
+          <span>{toastMessage}</span>
         </div>
+      )}
 
-        {/* Vendors Balances Table */}
-        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
-          <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+      {/* Admin Top Header */}
+      <div className="bg-slate-900 text-white py-8 px-4 sm:px-6 lg:px-8 border-b border-slate-800 shadow-md">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-emerald-300 shadow-inner">
+              <ShieldCheck className="w-6 h-6" />
+            </div>
             <div>
-              <h2 className="text-base font-bold text-slate-900">{t('allVendorsSummary')}</h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                يمكن لمدير المنصة اعتماد الحوالات الميدانية المسلّمة للمزودين داخل دمشق وحلب والمحافظات
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-black tracking-tight">
+                  {lang === 'ar' ? 'لوحة إدارة المنصة وتسوية الحوالات' : 'Admin Offline Payout Operations'}
+                </h1>
+                <span className="bg-emerald-500/20 border border-emerald-400/50 text-emerald-300 text-[10px] font-black px-2 py-0.5 rounded-full uppercase">
+                  Syria HQ
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 mt-1">
+                {lang === 'ar'
+                  ? 'إدارة طلبات السحب النقدية، تفاصيل شام كاش / سيريتل كاش، وتأكيد التسليم اليدوي'
+                  : 'Manage offline remittance requests, Syrian bank transfers, and manual settlements.'}
               </p>
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs text-start">
-              <thead className="bg-slate-50 text-slate-500 font-bold border-b border-slate-100">
-                <tr>
-                  <th className="py-3.5 px-4 text-start">{t('vendorStoreCol')}</th>
-                  <th className="py-3.5 px-4 text-start">{t('locationPhoneCol')}</th>
-                  <th className="py-3.5 px-4 text-start">{t('grossSalesCol')}</th>
-                  <th className="py-3.5 px-4 text-start">{t('commissionCol')}</th>
-                  <th className="py-3.5 px-4 text-start">{t('pendingPayoutCol')}</th>
-                  <th className="py-3.5 px-4 text-start">{t('settledCol')}</th>
-                  <th className="py-3.5 px-4 text-center">{t('action')}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {vendors.map((vendor) => (
-                  <tr key={vendor.vendor_id} className="hover:bg-slate-50/70 transition">
-                    {/* Store & Vendor Name */}
-                    <td className="py-4 px-4">
-                      <div className="font-bold text-slate-900 text-sm">{vendor.store_name}</div>
-                      <div className="text-[11px] text-slate-400 mt-0.5">
-                        المسؤول: {vendor.vendor_name} ({vendor.vendor_id})
-                      </div>
-                    </td>
-
-                    {/* Location & Phone */}
-                    <td className="py-4 px-4 text-slate-600">
-                      <div className="flex items-center gap-1 font-semibold text-slate-800">
-                        <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                        <span>{vendor.city}</span>
-                      </div>
-                      <div className="text-[11px] text-slate-500 mt-0.5" dir="ltr">
-                        {vendor.phone}
-                      </div>
-                    </td>
-
-                    {/* Gross Sales */}
-                    <td className="py-4 px-4 font-bold text-slate-900">
-                      ${vendor.total_gross_sales.toFixed(2)}
-                    </td>
-
-                    {/* Platform Fee */}
-                    <td className="py-4 px-4 text-emerald-700 font-semibold">
-                      ${vendor.total_platform_fees.toFixed(2)}
-                    </td>
-
-                    {/* Pending Balance */}
-                    <td className="py-4 px-4">
-                      {vendor.pending_balance > 0 ? (
-                        <div>
-                          <span className="text-sm font-black text-amber-600">
-                            ${vendor.pending_balance.toFixed(2)}
-                          </span>
-                          <div className="text-[10px] text-amber-700 font-semibold">
-                            ≈ {(vendor.pending_balance * 14800).toLocaleString('ar-SY')} ل.س
-                          </div>
-                        </div>
-                      ) : (
-                        <span className="text-slate-400 font-bold">$0.00</span>
-                      )}
-                    </td>
-
-                    {/* Settled to date */}
-                    <td className="py-4 px-4">
-                      <span className="font-bold text-blue-700">
-                        ${vendor.settled_balance.toFixed(2)}
-                      </span>
-                      {vendor.last_settled_at && (
-                        <div className="text-[10px] text-slate-400 mt-0.5">
-                          آخر تسوية: {new Date(vendor.last_settled_at).toLocaleDateString('ar-SY')}
-                        </div>
-                      )}
-                    </td>
-
-                    {/* Action Button: Settle / Paid in Syria */}
-                    <td className="py-4 px-4 text-center">
-                      {vendor.pending_balance > 0 ? (
-                        <button
-                          disabled={actionLoading === vendor.vendor_id}
-                          onClick={() => {
-                            setSettlingVendor(vendor);
-                            setPayoutNote(`حوالة مكتب الفؤاد / الهرم ${vendor.city} - تم التسليم للمندوب كاش`);
-                          }}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-xs transition cursor-pointer"
-                        >
-                          <FileCheck2 className="w-3.5 h-3.5" />
-                          <span>{t('markAsSettledBtn')}</span>
-                        </button>
-                      ) : (
-                        <span className="text-[11px] font-bold text-slate-400 bg-slate-100 px-2.5 py-1 rounded-md">
-                          لا توجد مستحقات معلقة
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="flex items-center gap-2.5">
+            <button
+              onClick={fetchAdminData}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold transition cursor-pointer"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>{lang === 'ar' ? 'تحديث البيانات' : 'Refresh'}</span>
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Settle Payout Modal */}
-      {settlingVendor && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-6 border border-slate-100 space-y-4">
-            <div className="border-b border-slate-100 pb-3">
-              <span className="text-xs font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded">
-                تسوية حوالة أرباح ميدانية
-              </span>
-              <h3 className="text-base font-black text-slate-900 mt-1">
-                تأكيد تسليم المستحقات للمزود: {settlingVendor.store_name}
-              </h3>
+      {/* Main Container */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 space-y-8">
+        {/* Financial KPI Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs space-y-1">
+            <span className="text-gray-400 text-xs font-bold uppercase tracking-wider">
+              {lang === 'ar' ? 'مستحقات معلقة للتسليم في سوريا' : 'Pending Payouts Liability'}
+            </span>
+            <div className="text-3xl font-black text-amber-700">
+              ${stats.pendingTotal.toFixed(2)} <span className="text-xs font-normal">USD</span>
             </div>
+            <p className="text-[11px] text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md inline-block font-semibold mt-2">
+              {stats.pendingCount} {lang === 'ar' ? 'طلب سحب قيد الانتظار' : 'pending requests'}
+            </p>
+          </div>
 
-            <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-200">
-              <div className="text-xs text-emerald-800">المبلغ الإجمالي المعتمد للصرف كاش:</div>
-              <div className="text-2xl font-black text-emerald-700 mt-0.5">
-                ${settlingVendor.pending_balance.toFixed(2)} USD
-              </div>
-              <div className="text-xs font-bold text-emerald-900 mt-0.5">
-                ≈ {(settlingVendor.pending_balance * 14800).toLocaleString('ar-SY')} ليرة سورية
-              </div>
+          <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs space-y-1">
+            <span className="text-gray-400 text-xs font-bold uppercase tracking-wider">
+              {lang === 'ar' ? 'إجمالي الحوالات المسواة كاش' : 'Settled Remittances'}
+            </span>
+            <div className="text-3xl font-black text-emerald-800">
+              ${stats.paidTotal.toFixed(2)} <span className="text-xs font-normal">USD</span>
             </div>
+            <p className="text-[11px] text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md inline-block font-semibold mt-2">
+              {lang === 'ar' ? 'تم تسليمها للمزودين بموجب إشعارات' : 'Dispatched with vouchers'}
+            </p>
+          </div>
 
+          <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs space-y-1">
+            <span className="text-gray-400 text-xs font-bold uppercase tracking-wider">
+              {lang === 'ar' ? 'عدد المتاجر والمزودين النشطين' : 'Active Syrian Vendors'}
+            </span>
+            <div className="text-3xl font-black text-gray-900">{vendors.length}</div>
+            <p className="text-[11px] text-gray-500 pt-2 border-t border-gray-100">
+              {lang === 'ar' ? 'دمشق، حلب، حمص والمحافظات' : 'Damascus, Aleppo, Homs'}
+            </p>
+          </div>
+
+          <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs space-y-1">
+            <span className="text-gray-400 text-xs font-bold uppercase tracking-wider">
+              {lang === 'ar' ? 'عمولة المنصة المكتسبة (10%)' : 'Platform Commissions (10%)'}
+            </span>
+            <div className="text-3xl font-black text-slate-800">
+              ${vendors.reduce((sum, v) => sum + v.total_platform_fees, 0).toFixed(2)}
+            </div>
+            <p className="text-[11px] text-gray-500 pt-2 border-t border-gray-100">
+              {lang === 'ar' ? 'صافي أرباح تشغيل المنصة' : 'Net platform revenue'}
+            </p>
+          </div>
+        </div>
+
+        {/* Withdrawal Requests Section */}
+        <div className="bg-white rounded-3xl border border-gray-200 p-6 shadow-xs space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-4">
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                رقم إشعار الحوالة / ملاحظة التسليم في سوريا:
-              </label>
-              <textarea
-                rows={2}
-                value={payoutNote}
-                onChange={(e) => setPayoutNote(e.target.value)}
-                placeholder={t('payoutNotePlaceholder')}
-                className="w-full text-xs border border-slate-300 rounded-xl p-2.5 outline-none focus:border-emerald-600"
-              />
+              <h2 className="text-base font-black text-gray-900 flex items-center gap-2">
+                <CreditCard className="w-5 h-5 text-emerald-600" />
+                <span>{lang === 'ar' ? 'طلبات سحب الرصيد المقدمة من التجار' : 'Vendor Withdrawal Requests'}</span>
+              </h2>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {lang === 'ar'
+                  ? 'مراجعة طلبات التحويل وتأكيد التسليم اليدوي في سوريا برقم الإشعار'
+                  : 'Review withdrawal requests, Cham Cash IDs, and confirm manual disbursement in Syria.'}
+              </p>
             </div>
 
-            <div className="flex justify-end gap-2 pt-2">
+            {/* Filter Tabs */}
+            <div className="flex items-center gap-1.5 bg-gray-100 p-1 rounded-xl text-xs font-bold">
               <button
-                type="button"
-                onClick={() => setSettlingVendor(null)}
-                className="px-4 py-2 border border-slate-300 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100"
+                onClick={() => setStatusFilter('all')}
+                className={`px-3 py-1.5 rounded-lg transition cursor-pointer ${
+                  statusFilter === 'all' ? 'bg-white text-gray-900 shadow-2xs' : 'text-gray-600 hover:text-gray-900'
+                }`}
               >
-                إلغاء
+                {lang === 'ar' ? 'الكل' : 'All'} ({withdrawals.length})
               </button>
               <button
-                type="button"
-                disabled={actionLoading === settlingVendor.vendor_id}
-                onClick={handleSettleSubmit}
-                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow"
+                onClick={() => setStatusFilter('pending')}
+                className={`px-3 py-1.5 rounded-lg transition cursor-pointer ${
+                  statusFilter === 'pending'
+                    ? 'bg-amber-600 text-white shadow-2xs'
+                    : 'text-amber-800 hover:bg-amber-100/50'
+                }`}
               >
-                {actionLoading === settlingVendor.vendor_id && <Loader2 className="w-4 h-4 animate-spin" />}
-                <span>تأكيد التسليم وتصفير الرصيد</span>
+                {lang === 'ar' ? 'قيد الانتظار' : 'Pending'} ({stats.pendingCount})
+              </button>
+              <button
+                onClick={() => setStatusFilter('paid')}
+                className={`px-3 py-1.5 rounded-lg transition cursor-pointer ${
+                  statusFilter === 'paid'
+                    ? 'bg-emerald-600 text-white shadow-2xs'
+                    : 'text-emerald-800 hover:bg-emerald-100/50'
+                }`}
+              >
+                {lang === 'ar' ? 'تم التسليم' : 'Settled'}
               </button>
             </div>
+          </div>
+
+          {loading ? (
+            <div className="py-16 text-center space-y-2">
+              <Loader2 className="w-6 h-6 text-emerald-600 animate-spin mx-auto" />
+              <p className="text-xs text-gray-400">{lang === 'ar' ? 'جاري تحميل السجلات...' : 'Loading requests...'}</p>
+            </div>
+          ) : filteredWithdrawals.length === 0 ? (
+            <div className="py-12 text-center text-xs text-gray-400">
+              {lang === 'ar' ? 'لا توجد طلبات سحب مطابقة لهذا الفلتر' : 'No withdrawal requests found.'}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs text-left rtl:text-right">
+                <thead className="text-[11px] uppercase bg-gray-50 text-gray-500 font-bold border-y border-gray-100">
+                  <tr>
+                    <th className="py-3 px-4">{lang === 'ar' ? 'المتجر والتاجر' : 'Vendor & Store'}</th>
+                    <th className="py-3 px-4">{lang === 'ar' ? 'المبلغ المطلوب' : 'Amount'}</th>
+                    <th className="py-3 px-4">{lang === 'ar' ? 'تفاصيل وسيلة الاستلام في سوريا' : 'Syrian Payout Details'}</th>
+                    <th className="py-3 px-4">{lang === 'ar' ? 'الحالة' : 'Status'}</th>
+                    <th className="py-3 px-4">{lang === 'ar' ? 'إشعار الحوالة' : 'Voucher Ref'}</th>
+                    <th className="py-3 px-4">{lang === 'ar' ? 'الإجراء' : 'Action'}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {filteredWithdrawals.map((w) => (
+                    <tr key={w.id} className="hover:bg-gray-50/60">
+                      <td className="py-3.5 px-4">
+                        <div className="font-bold text-gray-900 text-sm">{w.store_name}</div>
+                        <div className="text-gray-500">{w.vendor_name}</div>
+                        <div className="text-[10px] text-gray-400 font-mono">
+                          {new Date(w.created_at).toLocaleDateString(lang === 'ar' ? 'ar-SY' : 'en-US')}
+                        </div>
+                      </td>
+
+                      <td className="py-3.5 px-4">
+                        <div className="font-black text-gray-900 text-base">${w.amount.toFixed(2)} USD</div>
+                      </td>
+
+                      <td className="py-3.5 px-4">
+                        <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 max-w-xs space-y-1">
+                          <span className="text-[10px] font-black px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800">
+                            {w.payout_method?.method_name || 'Cham Cash'}
+                          </span>
+                          <p className="font-mono font-bold text-gray-900">{w.payout_method?.account_number}</p>
+                          <p className="text-gray-600 font-medium text-[11px]">{w.payout_method?.account_holder_name}</p>
+                          {w.payout_method?.notes && (
+                            <p className="text-[10px] text-gray-400">{w.payout_method.notes}</p>
+                          )}
+                        </div>
+                      </td>
+
+                      <td className="py-3.5 px-4">
+                        {w.status === 'paid' ? (
+                          <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2.5 py-1 rounded-full">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                            <span>{lang === 'ar' ? 'تم التسليم كاش' : 'Paid & Settled'}</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-800 text-[10px] font-bold px-2.5 py-1 rounded-full">
+                            <Clock className="w-3 h-3 text-amber-600" />
+                            <span>{lang === 'ar' ? 'بانتظار التحويل' : 'Pending Transfer'}</span>
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="py-3.5 px-4 font-mono">
+                        {w.transaction_ref ? (
+                          <div>
+                            <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                              {w.transaction_ref}
+                            </span>
+                            {w.admin_notes && (
+                              <p className="text-[10px] text-gray-400 font-sans mt-1">{w.admin_notes}</p>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 italic">
+                            {lang === 'ar' ? 'لم يسوى بعد' : 'Not settled yet'}
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="py-3.5 px-4">
+                        {w.status === 'pending' ? (
+                          <button
+                            onClick={() => handleOpenSettleModal(w)}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition cursor-pointer"
+                          >
+                            <FileCheck2 className="w-3.5 h-3.5" />
+                            <span>{lang === 'ar' ? 'تأكيد التسليم' : 'Mark as Paid'}</span>
+                          </button>
+                        ) : (
+                          <span className="text-[11px] text-emerald-700 font-bold flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>{lang === 'ar' ? 'مسوى بالكامل' : 'Settled'}</span>
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </main>
+
+      {/* ================= MODAL: SETTLE / MARK AS PAID ================= */}
+      {selectedWithdrawal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <h3 className="text-base font-black text-gray-900 flex items-center gap-2">
+                <FileCheck2 className="w-5 h-5 text-emerald-600" />
+                <span>{lang === 'ar' ? 'تأكيد تسليم الحوالة النقدية في سوريا' : 'Confirm Offline Disbursement'}</span>
+              </h3>
+              <button
+                onClick={() => setSelectedWithdrawal(null)}
+                className="p-1 rounded-lg text-gray-400 hover:text-gray-600 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Vendor & Amount Box */}
+            <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200 space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-emerald-900 font-bold">{selectedWithdrawal.store_name}</span>
+                <span className="text-lg font-black text-emerald-800">
+                  ${selectedWithdrawal.amount.toFixed(2)} USD
+                </span>
+              </div>
+              <div className="text-xs text-emerald-950 font-medium border-t border-emerald-200/60 pt-2 space-y-0.5">
+                <p>
+                  <strong>{lang === 'ar' ? 'وسيلة التحويل:' : 'Method:'}</strong> {selectedWithdrawal.payout_method?.method_name}
+                </p>
+                <p>
+                  <strong>{lang === 'ar' ? 'رقم الحساب / المحفظة:' : 'Account #:'}</strong> {selectedWithdrawal.payout_method?.account_number}
+                </p>
+                <p>
+                  <strong>{lang === 'ar' ? 'اسم المستلم:' : 'Beneficiary:'}</strong> {selectedWithdrawal.payout_method?.account_holder_name}
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleConfirmSettle} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">
+                  {lang === 'ar' ? 'رقم إشعار الحوالة / وصل الاستلام *' : 'Voucher / Remittance Reference *'}
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={transactionRef}
+                  onChange={(e) => setTransactionRef(e.target.value)}
+                  placeholder="مثال: CHAM-TXN-90214 أو وصل الهرم #88190"
+                  className="w-full text-xs px-3 py-2 rounded-xl border border-gray-300 focus:ring-1 focus:ring-emerald-500 font-mono font-bold text-gray-900"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">
+                  {lang === 'ar' ? 'ملاحظات الإدارة والتوثيق' : 'Admin Settlement Notes'}
+                </label>
+                <textarea
+                  rows={2}
+                  value={adminNotes}
+                  onChange={(e) => setAdminNotes(e.target.value)}
+                  placeholder="ملاحظات التسليم الميداني..."
+                  className="w-full text-xs px-3 py-2 rounded-xl border border-gray-300 focus:ring-1 focus:ring-emerald-500"
+                />
+              </div>
+
+              <div className="pt-2 flex justify-end gap-2 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => setSelectedWithdrawal(null)}
+                  className="px-4 py-2 rounded-xl border border-gray-200 text-gray-700 text-xs font-bold hover:bg-gray-50 cursor-pointer"
+                >
+                  {lang === 'ar' ? 'إلغاء' : 'Cancel'}
+                </button>
+                <button
+                  type="submit"
+                  disabled={actionLoading}
+                  className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md cursor-pointer disabled:opacity-60"
+                >
+                  {actionLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  <span>{lang === 'ar' ? 'تأكيد التسليم وتحديث الرصيد' : 'Confirm Settle (Mark as Paid)'}</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -1,5 +1,10 @@
 import { NextResponse } from 'next/server';
-import { getVendorProducts, addVendorProduct, deleteVendorProduct } from '@/lib/vendorStore';
+import {
+  getVendorProducts,
+  addVendorProduct,
+  updateVendorProduct,
+  deleteVendorProduct,
+} from '@/lib/vendorStore';
 
 export async function GET(request: Request) {
   try {
@@ -24,6 +29,9 @@ export async function POST(request: Request) {
       price_usd,
       category,
       image_url,
+      latitude,
+      longitude,
+      location_name,
       vendor_id,
       vendor_name,
     } = body;
@@ -44,10 +52,13 @@ export async function POST(request: Request) {
       price_usd: Number(price_usd),
       category: category || 'food',
       image_url: image_url || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=800&q=80',
-      items_en: ['High quality vendor verified items'],
-      items_ar: ['أصناف ممتازة معتمدة من المزود المحلي'],
-      specs_en: { 'Supplier': vendor_name || 'Syrian Verified Vendor' },
-      specs_ar: { 'المورد': vendor_name || 'مزود سوري معتمد' },
+      latitude: latitude ? Number(latitude) : 33.5138,
+      longitude: longitude ? Number(longitude) : 36.2765,
+      location_name: location_name || 'دمشق، المركز الرئيسي',
+      items_en: ['Directly inspected vendor package'],
+      items_ar: ['بضائع ومواد مفحوصة ومعتمدة من التاجر المحلي'],
+      specs_en: { 'Vendor': vendor_name || 'Verified Syrian Vendor' },
+      specs_ar: { 'التاجر المعتمد': vendor_name || 'تاجر سوري معتمد' },
       is_featured: false,
       stock_status: 'in_stock',
       vendor_id: vendor_id || 'vendor-damascus-01',
@@ -57,6 +68,26 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, product: newProduct });
   } catch (error) {
     return NextResponse.json({ success: false, error: 'Failed to create product' }, { status: 500 });
+  }
+}
+
+export async function PUT(request: Request) {
+  try {
+    const body = await request.json();
+    const { id, ...updates } = body;
+
+    if (!id) {
+      return NextResponse.json({ success: false, error: 'Product ID is required' }, { status: 400 });
+    }
+
+    const updated = updateVendorProduct(id, updates);
+    if (!updated) {
+      return NextResponse.json({ success: false, error: 'Product not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true, product: updated });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: 'Failed to update product' }, { status: 500 });
   }
 }
 

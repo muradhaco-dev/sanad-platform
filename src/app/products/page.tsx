@@ -12,7 +12,8 @@ import {
   Check,
   Filter,
   Search,
-  Sparkles
+  Sparkles,
+  MapPin,
 } from 'lucide-react';
 
 export default function ProductsPage() {
@@ -115,6 +116,12 @@ export default function ProductsPage() {
                   </div>
 
                   <div className="p-6">
+                    {product.location_name && (
+                      <div className="flex items-center gap-1 text-[11px] font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md mb-2 w-fit">
+                        <MapPin className="w-3 h-3 text-emerald-600 shrink-0" />
+                        <span className="truncate">{product.location_name}</span>
+                      </div>
+                    )}
                     <h3 className="text-lg font-bold text-slate-900 group-hover:text-emerald-700 transition-colors mb-2">
                       <Link href={`/products/${product.slug}`}>{title}</Link>
                     </h3>
