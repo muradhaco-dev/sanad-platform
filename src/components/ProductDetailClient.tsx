@@ -28,8 +28,8 @@ export default function ProductDetailClient({ product }: { product: Product }) {
   const specs = lang === 'ar' ? product.specs_ar : product.specs_en;
 
   return (
-    <div className="min-h-screen bg-slate-50/60 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-6xl mx-auto space-y-8">
+    <div className="min-h-screen bg-slate-50/60 py-6 sm:py-12 px-3 sm:px-6 lg:px-8 w-full overflow-x-hidden">
+      <div className="max-w-6xl mx-auto space-y-6 sm:space-y-8">
         {/* Breadcrumb Back Link */}
         <Link
           href="/products"
@@ -40,17 +40,17 @@ export default function ProductDetailClient({ product }: { product: Product }) {
         </Link>
 
         {/* Main Product Showcase Card */}
-        <div className="bg-white rounded-3xl border border-slate-200/90 shadow-sm overflow-hidden p-6 sm:p-10">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+        <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-xs sm:shadow-sm overflow-hidden p-4 sm:p-8 lg:p-10">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-10">
             {/* Left Column: Image */}
-            <div className="relative rounded-2xl overflow-hidden bg-slate-100 aspect-4/3">
+            <div className="relative rounded-2xl overflow-hidden bg-slate-100 aspect-4/3 sm:aspect-16/10 lg:aspect-4/3">
               <img
                 src={product.image_url}
                 alt={title}
                 className="w-full h-full object-cover"
               />
               {badge && (
-                <span className="absolute top-4 end-4 bg-emerald-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md">
+                <span className="absolute top-3 end-3 sm:top-4 sm:end-4 bg-emerald-600 text-white text-[11px] sm:text-xs font-bold px-3 py-1 rounded-full shadow-md">
                   {badge}
                 </span>
               )}
@@ -60,21 +60,21 @@ export default function ProductDetailClient({ product }: { product: Product }) {
             <div className="flex flex-col justify-between space-y-6">
               <div className="space-y-4">
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 text-xs font-bold border border-emerald-200">
-                  <Sparkles className="w-3.5 h-3.5" />
+                  <Sparkles className="w-3.5 h-3.5 shrink-0" />
                   <span>{t('oneTimePayment')}</span>
                 </div>
 
-                <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight leading-snug">
+                <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight leading-snug">
                   {title}
                 </h1>
 
-                <p className="text-sm text-slate-600 leading-relaxed">
+                <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
                   {desc}
                 </p>
 
                 {/* Vendor & Store Dispatch Location */}
                 {(product.vendor_name || product.location_name) && (
-                  <div className="p-3 bg-amber-50/70 border border-amber-200/80 rounded-2xl flex items-center justify-between text-xs">
+                  <div className="p-3 bg-amber-50/70 border border-amber-200/80 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
                     <div className="flex items-center gap-2">
                       <Store className="w-4 h-4 text-amber-700 shrink-0" />
                       <div>
@@ -88,8 +88,8 @@ export default function ProductDetailClient({ product }: { product: Product }) {
                       </div>
                     </div>
                     {product.latitude && product.longitude && (
-                      <span className="text-[10px] bg-white px-2 py-0.5 rounded-md font-mono text-amber-800 border border-amber-200 shrink-0">
-                        {product.latitude.toFixed(2)}, {product.longitude.toFixed(2)}
+                      <span className="text-[10px] bg-white px-2 py-0.5 rounded-md font-mono text-amber-800 border border-amber-200 shrink-0 self-start sm:self-auto">
+                        GPS: {product.latitude.toFixed(2)}, {product.longitude.toFixed(2)}
                       </span>
                     )}
                   </div>
@@ -99,14 +99,14 @@ export default function ProductDetailClient({ product }: { product: Product }) {
                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex items-center justify-between">
                   <div>
                     <div className="text-xs text-slate-500 font-semibold">{t('price')}</div>
-                    <div className="text-3xl font-black text-slate-900">${product.price_usd} USD</div>
+                    <div className="text-2xl sm:text-3xl font-black text-slate-900">${product.price_usd} USD</div>
                   </div>
                   <div className="text-end">
                     <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-100/80 px-2.5 py-1 rounded-lg">
                       <Check className="w-3.5 h-3.5" />
                       <span>{t('inStock')}</span>
                     </span>
-                    <div className="text-[11px] text-slate-400 mt-1">{t('oneTimePayment')}</div>
+                    <div className="text-[10px] sm:text-[11px] text-slate-400 mt-1">{t('oneTimePayment')}</div>
                   </div>
                 </div>
 
@@ -141,10 +141,10 @@ export default function ProductDetailClient({ product }: { product: Product }) {
         </div>
 
         {/* Detailed Breakdown: What's Included & Specs */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
           {/* What's Included */}
-          <div className="bg-white rounded-3xl p-8 border border-slate-200/90 shadow-xs">
-            <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+          <div className="bg-white rounded-2xl sm:rounded-3xl p-5 sm:p-8 border border-slate-200/90 shadow-xs">
+            <h2 className="text-base sm:text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
               <PackageCheck className="w-5 h-5 text-emerald-600" />
               <span>{t('whatsIncluded')}</span>
             </h2>
@@ -161,16 +161,16 @@ export default function ProductDetailClient({ product }: { product: Product }) {
           </div>
 
           {/* Specifications Table */}
-          <div className="bg-white rounded-3xl p-8 border border-slate-200/90 shadow-xs">
-            <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+          <div className="bg-white rounded-2xl sm:rounded-3xl p-5 sm:p-8 border border-slate-200/90 shadow-xs">
+            <h2 className="text-base sm:text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
               <ShieldCheck className="w-5 h-5 text-emerald-600" />
               <span>{t('specifications')}</span>
             </h2>
             <div className="divide-y divide-slate-100 text-xs">
               {Object.entries(specs).map(([key, value], idx) => (
-                <div key={idx} className="py-2.5 flex items-center justify-between">
-                  <span className="font-bold text-slate-600">{key}</span>
-                  <span className="text-slate-900 font-semibold">{value}</span>
+                <div key={idx} className="py-2.5 flex items-center justify-between gap-2">
+                  <span className="font-bold text-slate-600 shrink-0">{key}</span>
+                  <span className="text-slate-900 font-semibold text-end">{value}</span>
                 </div>
               ))}
             </div>

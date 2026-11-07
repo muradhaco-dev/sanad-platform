@@ -150,14 +150,15 @@ export default function VendorDashboardPage() {
         .order('created_at', { ascending: false });
 
       if (!prodErr && dbProducts && dbProducts.length > 0) {
-        setProducts(dbProducts as Product[]);
+        setProducts(dbProducts as any);
       } else {
-        const res = await fetch(`/api/vendor/products?vendorId=${activeVendorId}`);
+        // Fallback to Next.js API route
+        const res = await fetch(`/api/vendor/products?vendor_id=${activeVendorId}`);
         const data = await res.json();
-        if (data.success) setProducts(data.products);
+        if (data.products) setProducts(data.products);
       }
 
-      // 2. Query Orders from Supabase
+      // 2. Query Purchased Order Items for this vendor
       const { data: dbOrders, error: orderErr } = await supabase
         .from('order_items')
         .select('*')
@@ -165,52 +166,48 @@ export default function VendorDashboardPage() {
         .order('created_at', { ascending: false });
 
       if (!orderErr && dbOrders && dbOrders.length > 0) {
-        setOrders(dbOrders as VendorOrderItem[]);
+        setOrders(dbOrders as any);
       } else {
-        const res = await fetch(`/api/vendor/orders?vendorId=${activeVendorId}`);
+        const res = await fetch(`/api/vendor/orders?vendor_id=${activeVendorId}`);
         const data = await res.json();
-        if (data.success) setOrders(data.orders);
+        if (data.orders) setOrders(data.orders);
       }
 
-      // 3. Query Payout Methods (Cham Cash, etc.) from Supabase
-      const { data: dbMethods, error: methErr } = await supabase
+      // 3. Query Syrian Payout Methods (Cham Cash)
+      const { data: dbMethods } = await supabase
         .from('vendor_payout_methods')
         .select('*')
         .eq('vendor_id', activeVendorId)
-        .order('created_at', { ascending: false });
+        .order('is_default', { ascending: false });
 
-      if (!methErr && dbMethods && dbMethods.length > 0) {
-        setPayoutMethods(dbMethods as VendorPayoutMethod[]);
-        if (!withdrawMethodId) setWithdrawMethodId(dbMethods[0].id);
+      if (dbMethods && dbMethods.length > 0) {
+        setPayoutMethods(dbMethods as any);
+        setWithdrawMethodId(dbMethods[0].id);
       } else {
-        const res = await fetch(`/api/vendor/payout-methods?vendorId=${activeVendorId}`);
+        const res = await fetch(`/api/vendor/payout-methods?vendor_id=${activeVendorId}`);
         const data = await res.json();
-        if (data.success) {
+        if (data.methods) {
           setPayoutMethods(data.methods);
-          if (data.methods.length > 0 && !withdrawMethodId) {
-            setWithdrawMethodId(data.methods[0].id);
-          }
+          if (data.methods.length > 0) setWithdrawMethodId(data.methods[0].id);
         }
       }
 
-      // 4. Query Withdrawals from Supabase
-      const { data: dbWithdrawals, error: withErr } = await supabase
+      // 4. Query Withdrawals History
+      const { data: dbWithdrawals } = await supabase
         .from('withdrawals')
         .select('*')
         .eq('vendor_id', activeVendorId)
         .order('created_at', { ascending: false });
 
-      if (!withErr && dbWithdrawals && dbWithdrawals.length > 0) {
-        setWithdrawals(dbWithdrawals as WithdrawalRequest[]);
+      if (dbWithdrawals && dbWithdrawals.length > 0) {
+        setWithdrawals(dbWithdrawals as any);
       } else {
-        const res = await fetch(`/api/vendor/withdrawals?vendorId=${activeVendorId}`);
+        const res = await fetch(`/api/vendor/withdrawals?vendor_id=${activeVendorId}`);
         const data = await res.json();
-        if (data.success) {
-          setWithdrawals(data.withdrawals);
-        }
+        if (data.withdrawals) setWithdrawals(data.withdrawals);
       }
     } catch (err) {
-      console.error('Error querying Supabase vendor data:', err);
+      console.error('Error loading vendor data:', err);
     } finally {
       setLoading(false);
     }
@@ -224,21 +221,24 @@ export default function VendorDashboardPage() {
     }
   }, [authChecked, userRole, vendorId]);
 
-  // Financial Balance Calculations
-  const totalGrossSales = orders.reduce((sum, o) => sum + Number(o.total_price || 0), 0);
-  const totalPlatformFees = orders.reduce((sum, o) => sum + Number(o.platform_fee || 0), 0);
-  const totalNetEarnings = totalGrossSales - totalPlatformFees;
-
+  // Financial Calculations for Wallet
+  const totalGrossSales = orders.reduce((sum, item) => sum + (Number(item.total_price) || 0), 0);
+  const totalPlatformFees = orders.reduce((sum, item) => sum + (Number(item.platform_fee) || 0), 0);
+  const totalNetEarnings = orders.reduce(
+    (sum, item) => sum + (Number(item.net_vendor_amount) || 0),
+    0
+  );
   const totalPaidWithdrawals = withdrawals
     .filter((w) => w.status === 'paid')
-    .reduce((sum, w) => sum + Number(w.amount || 0), 0);
-
+    .reduce((sum, w) => sum + (Number(w.amount) || 0), 0);
   const totalPendingWithdrawals = withdrawals
     .filter((w) => w.status === 'pending')
-    .reduce((sum, w) => sum + Number(w.amount || 0), 0);
+    .reduce((sum, w) => sum + (Number(w.amount) || 0), 0);
 
-  // Available Balance = Net Earnings - Paid Withdrawals - Pending Withdrawals
-  const availableBalance = Math.max(0, totalNetEarnings - totalPaidWithdrawals - totalPendingWithdrawals);
+  const availableBalance = Math.max(
+    0,
+    totalNetEarnings - totalPaidWithdrawals - totalPendingWithdrawals
+  );
 
   // ================= PRODUCTS MANAGEMENT ACTIONS =================
   const handleOpenAddProduct = () => {
@@ -266,43 +266,45 @@ export default function VendorDashboardPage() {
       description_en: prod.description_en,
       description_ar: prod.description_ar,
       price_usd: prod.price_usd.toString(),
-      category: prod.category,
+      category: (prod.category as any) || 'food',
       image_url: prod.image_url,
       latitude: prod.latitude || 33.5138,
       longitude: prod.longitude || 36.2765,
-      location_name: prod.location_name || 'دمشق، المركز الرئيسي',
+      location_name: prod.location_name || 'دمشق',
     });
     setIsProductModalOpen(true);
   };
 
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!productForm.title_en || !productForm.title_ar || !productForm.price_usd) {
-      alert(lang === 'ar' ? 'يرجى إدخال اسم المنتج باللغتين وسعر البيع' : 'Title and Price are required');
+    if (!productForm.title_ar || !productForm.price_usd) {
+      alert(lang === 'ar' ? 'يرجى إدخال اسم المنتج والسعر' : 'Please provide product title and price');
       return;
     }
 
     setActionLoading(true);
     try {
-      const priceNum = parseFloat(productForm.price_usd);
+      const payload = {
+        vendor_id: vendorId,
+        title_en: productForm.title_en || productForm.title_ar,
+        title_ar: productForm.title_ar,
+        description_en: productForm.description_en || productForm.description_ar,
+        description_ar: productForm.description_ar,
+        price_usd: parseFloat(productForm.price_usd),
+        category: productForm.category,
+        image_url: productForm.image_url,
+        latitude: productForm.latitude,
+        longitude: productForm.longitude,
+        location_name: productForm.location_name,
+        stock_status: 'in_stock',
+        is_active: true,
+      };
 
       if (editingProductId) {
-        // Update in Supabase
+        // Update product in Supabase
         const { error } = await supabase
           .from('products')
-          .update({
-            title_en: productForm.title_en,
-            title_ar: productForm.title_ar,
-            description_en: productForm.description_en,
-            description_ar: productForm.description_ar,
-            price_usd: priceNum,
-            category: productForm.category,
-            image_url: productForm.image_url,
-            latitude: productForm.latitude,
-            longitude: productForm.longitude,
-            location_name: productForm.location_name,
-            updated_at: new Date().toISOString(),
-          })
+          .update(payload)
           .eq('id', editingProductId);
 
         if (error) {
@@ -310,30 +312,16 @@ export default function VendorDashboardPage() {
           await fetch('/api/vendor/products', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: editingProductId, ...productForm, price_usd: priceNum }),
+            body: JSON.stringify({ id: editingProductId, ...payload }),
           });
         }
-        showToast(lang === 'ar' ? 'تم تحديث بيانات المنتج بنجاح!' : 'Product updated successfully!');
+        showToast(lang === 'ar' ? 'تم تحديث بيانات المنتج وموقعه بنجاح!' : 'Product updated successfully!');
       } else {
-        // Insert into Supabase
-        const slug =
-          productForm.title_en.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Date.now().toString().slice(-4);
-
+        // Insert new product into Supabase
+        const slug = `p-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
         const { error } = await supabase.from('products').insert({
-          vendor_id: vendorId,
           slug,
-          title_en: productForm.title_en,
-          title_ar: productForm.title_ar,
-          description_en: productForm.description_en,
-          description_ar: productForm.description_ar,
-          price_usd: priceNum,
-          category: productForm.category,
-          image_url: productForm.image_url,
-          latitude: productForm.latitude,
-          longitude: productForm.longitude,
-          location_name: productForm.location_name,
-          stock_status: 'in_stock',
-          is_active: true,
+          ...payload,
         });
 
         if (error) {
@@ -341,12 +329,7 @@ export default function VendorDashboardPage() {
           await fetch('/api/vendor/products', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              ...productForm,
-              price_usd: priceNum,
-              vendor_id: vendorId,
-              vendor_name: vendorName,
-            }),
+            body: JSON.stringify(payload),
           });
         }
         showToast(lang === 'ar' ? 'تمت إضافة المنتج ونشره في المتجر فوراً!' : 'Product added and published!');
@@ -527,12 +510,12 @@ export default function VendorDashboardPage() {
   // Strictly protect route for Vendor / Admin roles only
   if (authChecked && userRole !== 'vendor' && userRole !== 'admin') {
     return (
-      <div className="min-h-[75vh] flex items-center justify-center px-4 py-16 bg-slate-50">
-        <div className="max-w-md w-full bg-white rounded-3xl p-8 border border-gray-200 text-center shadow-lg space-y-4">
-          <div className="w-16 h-16 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center mx-auto">
-            <Store className="w-8 h-8" />
+      <div className="min-h-[75vh] flex items-center justify-center px-4 py-12 bg-slate-50 w-full">
+        <div className="max-w-md w-full bg-white rounded-2xl sm:rounded-3xl p-6 sm:p-8 border border-gray-200 text-center shadow-lg space-y-4">
+          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center mx-auto">
+            <Store className="w-7 h-7 sm:w-8 sm:h-8" />
           </div>
-          <h2 className="text-xl font-black text-gray-900">
+          <h2 className="text-lg sm:text-xl font-black text-gray-900">
             {lang === 'ar' ? 'بوابة التجار والمزودين المعتمدين' : 'Authorized Vendors Only'}
           </h2>
           <p className="text-xs text-gray-500 leading-relaxed">
@@ -540,16 +523,16 @@ export default function VendorDashboardPage() {
               ? 'هذه اللوحة مخصصة فقط للتجار المعتمدين لإدارة المنتجات، موقع المستودع في سوريا، تتبع الطلبات، وسحب رصيد شام كاش.'
               : 'This dashboard is strictly reserved for verified vendors to manage products, Syrian dispatch coordinates, orders, and Cham Cash withdrawals.'}
           </p>
-          <div className="pt-4 flex flex-col gap-2">
+          <div className="pt-2 sm:pt-4 flex flex-col gap-2">
             <Link
               href="/auth/signup"
-              className="w-full py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-md transition"
+              className="w-full py-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-md transition text-center"
             >
               {lang === 'ar' ? 'سجل الآن كتاجر (تفعيل فوري)' : 'Sign Up as Vendor (Instant Activation)'}
             </Link>
             <Link
               href="/auth/login"
-              className="w-full py-2.5 rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 font-bold text-xs transition"
+              className="w-full py-3 rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 font-bold text-xs transition text-center"
             >
               {lang === 'ar' ? 'تسجيل الدخول' : 'Sign In'}
             </Link>
@@ -560,32 +543,32 @@ export default function VendorDashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50/70 pb-20">
+    <div className="min-h-screen bg-slate-50/70 pb-20 w-full overflow-x-hidden">
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="sticky top-16 z-50 bg-emerald-700 text-white py-3 px-4 shadow-lg text-center text-xs font-bold flex items-center justify-center gap-2 animate-in slide-in-from-top">
-          <CheckCircle2 className="w-4 h-4 text-emerald-300" />
+        <div className="sticky top-16 z-50 bg-emerald-700 text-white py-2.5 px-4 shadow-lg text-center text-xs font-bold flex items-center justify-center gap-2 animate-in slide-in-from-top">
+          <CheckCircle2 className="w-4 h-4 text-emerald-300 shrink-0" />
           <span>{toastMessage}</span>
         </div>
       )}
 
       {/* Header Banner */}
-      <div className="bg-gradient-to-r from-amber-900 via-amber-800 to-amber-950 text-white py-8 px-4 sm:px-6 lg:px-8 border-b border-amber-700/60 shadow-md">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-300 shadow-inner">
-              <Store className="w-6 h-6" />
+      <div className="bg-gradient-to-r from-amber-900 via-amber-800 to-amber-950 text-white py-6 sm:py-8 px-4 sm:px-6 lg:px-8 border-b border-amber-700/60 shadow-md">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-300 shadow-inner shrink-0">
+              <Store className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-black tracking-tight">{vendorName}</h1>
-                <span className="bg-emerald-500/20 border border-emerald-400/50 text-emerald-300 text-[10px] font-black px-2 py-0.5 rounded-full uppercase">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-lg sm:text-2xl font-black tracking-tight truncate">{vendorName}</h1>
+                <span className="bg-emerald-500/20 border border-emerald-400/50 text-emerald-300 text-[10px] font-black px-2 py-0.5 rounded-full uppercase shrink-0">
                   {lang === 'ar' ? 'تاجر معتمد • نشط' : 'Verified Vendor'}
                 </span>
               </div>
-              <p className="text-xs text-amber-200/80 mt-1 flex items-center gap-1.5 font-medium">
-                <MapPin className="w-3.5 h-3.5 text-amber-400" />
-                <span>
+              <p className="text-[11px] sm:text-xs text-amber-200/80 mt-0.5 flex items-center gap-1.5 font-medium truncate">
+                <MapPin className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span className="truncate">
                   {lang === 'ar'
                     ? 'إدارة المنتجات، إحداثيات المستودع، الطلبات الواردة، ومحفظة شام كاش'
                     : 'Manage catalog, Syria dispatch coordinates, orders, and Cham Cash payouts'}
@@ -594,12 +577,12 @@ export default function VendorDashboardPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap sm:flex-nowrap">
             <button
               onClick={handleOpenAddProduct}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black shadow-md transition cursor-pointer"
+              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black shadow-md transition cursor-pointer"
             >
-              <Plus className="w-4 h-4 stroke-[3]" />
+              <Plus className="w-4 h-4 stroke-[3] shrink-0" />
               <span>{lang === 'ar' ? 'إضافة منتج جديد' : 'Add Product'}</span>
             </button>
             <button
@@ -607,29 +590,30 @@ export default function VendorDashboardPage() {
                 setActiveTab('wallet');
                 setIsWithdrawModalOpen(true);
               }}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/20 text-xs font-bold transition cursor-pointer"
+              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/20 text-xs font-bold transition cursor-pointer"
             >
-              <ArrowDownToLine className="w-4 h-4 text-emerald-400" />
-              <span>{lang === 'ar' ? 'سحب رصيد (شام كاش)' : 'Request Withdrawal'}</span>
+              <ArrowDownToLine className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span className="truncate">{lang === 'ar' ? 'سحب رصيد (شام كاش)' : 'Request Withdrawal'}</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* 3 Main Sections Navigation Tabs */}
+      {/* 3 Main Sections Navigation Tabs (Scrollable & Responsive on Mobile) */}
       <div className="bg-white border-b border-gray-200 sticky top-16 z-30 shadow-2xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center gap-3 py-2.5">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 flex items-center gap-1.5 sm:gap-3 py-2 overflow-x-auto no-scrollbar">
           {/* Tab 1: Products Management */}
           <button
             onClick={() => setActiveTab('products')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
+            className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 sm:gap-2 shrink-0 cursor-pointer ${
               activeTab === 'products'
                 ? 'bg-amber-600 text-white shadow-xs'
                 : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
             }`}
           >
-            <Package className="w-4 h-4" />
-            <span>{lang === 'ar' ? '1. إدارة المنتجات والموقع الجغرافي' : '1. Products Management'}</span>
+            <Package className="w-4 h-4 shrink-0" />
+            <span className="sm:hidden">{lang === 'ar' ? 'المنتجات والموقع' : 'Products'}</span>
+            <span className="hidden sm:inline">{lang === 'ar' ? '1. إدارة المنتجات والموقع الجغرافي' : '1. Products Management'}</span>
             <span
               className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
                 activeTab === 'products' ? 'bg-amber-700 text-white' : 'bg-gray-200 text-gray-700'
@@ -642,14 +626,15 @@ export default function VendorDashboardPage() {
           {/* Tab 2: Orders Management */}
           <button
             onClick={() => setActiveTab('orders')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
+            className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 sm:gap-2 shrink-0 cursor-pointer ${
               activeTab === 'orders'
                 ? 'bg-amber-600 text-white shadow-xs'
                 : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
             }`}
           >
-            <ShoppingBag className="w-4 h-4" />
-            <span>{lang === 'ar' ? '2. إدارة الطلبات الواردة' : '2. Orders Management'}</span>
+            <ShoppingBag className="w-4 h-4 shrink-0" />
+            <span className="sm:hidden">{lang === 'ar' ? 'الطلبات' : 'Orders'}</span>
+            <span className="hidden sm:inline">{lang === 'ar' ? '2. إدارة الطلبات الواردة' : '2. Orders Management'}</span>
             <span
               className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
                 activeTab === 'orders' ? 'bg-emerald-600 text-white' : 'bg-emerald-100 text-emerald-800'
@@ -662,14 +647,15 @@ export default function VendorDashboardPage() {
           {/* Tab 3: Wallet & Withdrawals (Cham Cash) */}
           <button
             onClick={() => setActiveTab('wallet')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
+            className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 sm:gap-2 shrink-0 cursor-pointer ${
               activeTab === 'wallet'
                 ? 'bg-amber-600 text-white shadow-xs'
                 : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
             }`}
           >
-            <Wallet className="w-4 h-4" />
-            <span>{lang === 'ar' ? '3. المحفظة وسحب الرصيد (شام كاش)' : '3. Wallet & Withdrawals (Cham Cash)'}</span>
+            <Wallet className="w-4 h-4 shrink-0" />
+            <span className="sm:hidden">{lang === 'ar' ? 'المحفظة' : 'Wallet'}</span>
+            <span className="hidden sm:inline">{lang === 'ar' ? '3. المحفظة وسحب الرصيد (شام كاش)' : '3. Wallet & Withdrawals'}</span>
             <span className="text-[10px] px-2 py-0.5 bg-emerald-500 text-white rounded-full font-black">
               ${availableBalance.toFixed(0)}
             </span>
@@ -678,7 +664,7 @@ export default function VendorDashboardPage() {
       </div>
 
       {/* Main Content Area */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-6 sm:pt-8 w-full">
         {loading ? (
           <div className="py-24 text-center space-y-3">
             <Loader2 className="w-8 h-8 text-amber-600 animate-spin mx-auto" />
@@ -690,10 +676,10 @@ export default function VendorDashboardPage() {
           <>
             {/* ================= TAB 1: PRODUCTS MANAGEMENT ================= */}
             {activeTab === 'products' && (
-              <div className="space-y-6">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-gray-200 shadow-xs">
+              <div className="space-y-4 sm:space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 sm:p-5 rounded-2xl border border-gray-200 shadow-xs">
                   <div>
-                    <h2 className="text-base font-black text-gray-900">
+                    <h2 className="text-sm sm:text-base font-black text-gray-900">
                       {lang === 'ar' ? 'منتجات المتجر وإحداثيات المستودع في سوريا' : 'Your Store Products & Location'}
                     </h2>
                     <p className="text-xs text-gray-500 mt-0.5">
@@ -704,15 +690,15 @@ export default function VendorDashboardPage() {
                   </div>
                   <button
                     onClick={handleOpenAddProduct}
-                    className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-xs transition cursor-pointer"
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-xs transition cursor-pointer"
                   >
-                    <Plus className="w-4 h-4" />
+                    <Plus className="w-4 h-4 shrink-0" />
                     <span>{lang === 'ar' ? 'إضافة منتج جديد' : 'Add New Product'}</span>
                   </button>
                 </div>
 
                 {products.length === 0 ? (
-                  <div className="bg-white rounded-2xl border border-dashed border-gray-300 p-12 text-center space-y-3">
+                  <div className="bg-white rounded-2xl border border-dashed border-gray-300 p-8 sm:p-12 text-center space-y-3">
                     <Package className="w-12 h-12 text-gray-300 mx-auto" />
                     <h3 className="text-sm font-bold text-gray-700">
                       {lang === 'ar' ? 'لا توجد منتجات مسجلة في حسابك بعد' : 'No products found'}
@@ -724,34 +710,35 @@ export default function VendorDashboardPage() {
                     </p>
                     <button
                       onClick={handleOpenAddProduct}
-                      className="px-4 py-2 bg-amber-600 text-white rounded-xl text-xs font-bold cursor-pointer"
+                      className="px-4 py-2.5 bg-amber-600 text-white rounded-xl text-xs font-bold cursor-pointer inline-flex items-center gap-1.5"
                     >
-                      {lang === 'ar' ? 'إضافة منتج الآن' : 'Add First Product'}
+                      <Plus className="w-4 h-4" />
+                      <span>{lang === 'ar' ? 'إضافة منتج الآن' : 'Add First Product'}</span>
                     </button>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                     {products.map((prod) => (
                       <div
                         key={prod.id}
                         className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-xs hover:shadow-md transition flex flex-col justify-between"
                       >
                         <div>
-                          <div className="relative h-44 bg-gray-100 overflow-hidden">
+                          <div className="relative h-40 sm:h-44 bg-gray-100 overflow-hidden">
                             <img
                               src={prod.image_url}
                               alt={prod.title_ar}
                               className="w-full h-full object-cover"
                             />
-                            <div className="absolute top-3 right-3 bg-white/95 backdrop-blur-xs px-2.5 py-1 rounded-lg text-xs font-black text-emerald-800 shadow-xs">
+                            <div className="absolute top-2.5 right-2.5 bg-white/95 backdrop-blur-xs px-2.5 py-1 rounded-lg text-xs font-black text-emerald-800 shadow-xs">
                               ${prod.price_usd} USD
                             </div>
-                            <div className="absolute top-3 left-3 bg-slate-900/80 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded-md uppercase">
+                            <div className="absolute top-2.5 left-2.5 bg-slate-900/80 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded-md uppercase">
                               {prod.category}
                             </div>
                           </div>
 
-                          <div className="p-4 space-y-2.5">
+                          <div className="p-3.5 sm:p-4 space-y-2.5">
                             <div>
                               <h3 className="font-bold text-gray-900 text-sm line-clamp-1">
                                 {lang === 'ar' ? prod.title_ar : prod.title_en}
@@ -762,13 +749,13 @@ export default function VendorDashboardPage() {
                             </div>
 
                             {/* Location & GPS Badge */}
-                            <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between text-[11px] text-gray-700 font-medium">
+                            <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-[11px] text-gray-700 font-medium">
                               <span className="flex items-center gap-1 text-slate-800 truncate">
                                 <MapPin className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                                 <span className="truncate">{prod.location_name || 'دمشق'}</span>
                               </span>
                               {prod.latitude && (
-                                <span className="text-[10px] text-slate-500 font-mono bg-white px-1.5 py-0.5 rounded border border-gray-200">
+                                <span className="text-[10px] text-slate-500 font-mono bg-white px-1.5 py-0.5 rounded border border-gray-200 self-start sm:self-auto">
                                   GPS: {prod.latitude.toFixed(2)}, {prod.longitude?.toFixed(2)}
                                 </span>
                               )}
@@ -776,30 +763,30 @@ export default function VendorDashboardPage() {
                           </div>
                         </div>
 
-                        <div className="p-4 pt-0 border-t border-gray-100 flex items-center justify-between gap-2 mt-3">
+                        <div className="p-3.5 sm:p-4 pt-0 border-t border-gray-100 flex items-center justify-between gap-2 mt-2">
                           <Link
                             href={`/products/${prod.slug}`}
                             target="_blank"
                             className="inline-flex items-center gap-1 text-[11px] font-bold text-gray-600 hover:text-emerald-700 transition"
                           >
-                            <ExternalLink className="w-3.5 h-3.5" />
+                            <ExternalLink className="w-3.5 h-3.5 shrink-0" />
                             <span>{lang === 'ar' ? 'معاينة في المتجر' : 'Store View'}</span>
                           </Link>
 
                           <div className="flex items-center gap-1.5">
                             <button
                               onClick={() => handleOpenEditProduct(prod)}
-                              className="p-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-amber-50 hover:text-amber-800 transition cursor-pointer"
+                              className="p-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-amber-50 hover:text-amber-800 transition cursor-pointer"
                               title="تعديل المنتج والموقع"
                             >
-                              <Edit3 className="w-3.5 h-3.5" />
+                              <Edit3 className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => handleDeleteProduct(prod.id)}
-                              className="p-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                              className="p-2 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 transition cursor-pointer"
                               title="حذف المنتج"
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
                         </div>
@@ -812,10 +799,10 @@ export default function VendorDashboardPage() {
 
             {/* ================= TAB 2: ORDERS MANAGEMENT ================= */}
             {activeTab === 'orders' && (
-              <div className="space-y-6">
-                <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="space-y-4 sm:space-y-6">
+                <div className="bg-white p-4 sm:p-5 rounded-2xl border border-gray-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
-                    <h2 className="text-base font-black text-gray-900">
+                    <h2 className="text-sm sm:text-base font-black text-gray-900">
                       {lang === 'ar' ? 'السلع المشتراة والمدفوعة من هذا المتجر' : 'Items Purchased from Your Store'}
                     </h2>
                     <p className="text-xs text-gray-500 mt-0.5">
@@ -824,14 +811,14 @@ export default function VendorDashboardPage() {
                         : 'Real-time table of customer purchases attributed to your vendor account.'}
                     </p>
                   </div>
-                  <div className="text-xs font-bold text-emerald-800 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 flex items-center gap-2">
-                    <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                  <div className="text-xs font-bold text-emerald-800 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 flex items-center gap-1.5 self-start sm:self-auto">
+                    <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
                     <span>{lang === 'ar' ? 'الدفع مؤكد 100% ومودع بالمحفظة' : '100% Verified Payment'}</span>
                   </div>
                 </div>
 
                 {orders.length === 0 ? (
-                  <div className="bg-white rounded-2xl border border-dashed border-gray-300 p-12 text-center space-y-3">
+                  <div className="bg-white rounded-2xl border border-dashed border-gray-300 p-8 sm:p-12 text-center space-y-3">
                     <ShoppingBag className="w-12 h-12 text-gray-300 mx-auto" />
                     <h3 className="text-sm font-bold text-gray-700">
                       {lang === 'ar' ? 'لا توجد طلبات واردة حتى الآن' : 'No incoming orders yet'}
@@ -843,98 +830,168 @@ export default function VendorDashboardPage() {
                     </p>
                   </div>
                 ) : (
-                  <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-xs">
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-xs text-left rtl:text-right">
-                        <thead className="text-[11px] uppercase bg-gray-50 text-gray-500 font-bold border-b border-gray-100">
-                          <tr>
-                            <th className="py-3.5 px-4">{lang === 'ar' ? 'رقم الطلب' : 'Order #'}</th>
-                            <th className="py-3.5 px-4">{lang === 'ar' ? 'المنتج والكمية' : 'Product & Qty'}</th>
-                            <th className="py-3.5 px-4">{lang === 'ar' ? 'بيانات المستلم والتوصيل' : 'Customer & Delivery'}</th>
-                            <th className="py-3.5 px-4">{lang === 'ar' ? 'الإجمالي والعمولة' : 'Pricing & Fee'}</th>
-                            <th className="py-3.5 px-4">{lang === 'ar' ? 'صافي أرباحك' : 'Net Earning'}</th>
-                            <th className="py-3.5 px-4">{lang === 'ar' ? 'حالة التجهيز' : 'Status'}</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                          {orders.map((item) => (
-                            <tr key={item.id} className="hover:bg-gray-50/50">
-                              <td className="py-3.5 px-4">
-                                <span className="font-mono font-bold text-gray-900 bg-slate-100 px-2 py-0.5 rounded text-[11px]">
-                                  {item.order_number}
-                                </span>
-                                <div className="text-[10px] text-gray-400 mt-1">
-                                  {new Date(item.created_at).toLocaleDateString(lang === 'ar' ? 'ar-SY' : 'en-US')}
-                                </div>
-                              </td>
+                  <>
+                    {/* Mobile-Friendly Cards View (Under md) */}
+                    <div className="block md:hidden space-y-3">
+                      {orders.map((item) => (
+                        <div key={item.id} className="bg-white rounded-2xl border border-gray-200 p-4 shadow-xs space-y-3">
+                          <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                            <span className="font-mono font-bold text-gray-900 bg-slate-100 px-2 py-0.5 rounded text-xs">
+                              {item.order_number}
+                            </span>
+                            <span className="text-[10px] text-gray-400">
+                              {new Date(item.created_at).toLocaleDateString(lang === 'ar' ? 'ar-SY' : 'en-US')}
+                            </span>
+                          </div>
 
-                              <td className="py-3.5 px-4">
-                                <div className="font-bold text-gray-900">{item.product_title}</div>
-                                <div className="text-gray-500 text-[11px]">
-                                  {lang === 'ar' ? 'الكمية:' : 'Qty:'} {item.quantity} × ${item.unit_price} USD
-                                </div>
-                              </td>
+                          <div className="space-y-1">
+                            <h4 className="font-bold text-gray-900 text-sm">{item.product_title}</h4>
+                            <div className="text-gray-500 text-xs">
+                              {lang === 'ar' ? 'الكمية:' : 'Qty:'} <span className="font-bold text-gray-800">{item.quantity}</span> × ${item.unit_price} USD
+                            </div>
+                          </div>
 
-                              <td className="py-3.5 px-4">
-                                <div className="font-bold text-gray-900">{item.customer_name}</div>
-                                {item.customer_phone && (
-                                  <div className="text-gray-500 flex items-center gap-1 font-mono text-[11px]">
-                                    <Phone className="w-3 h-3 text-emerald-600" />
-                                    <span dir="ltr">{item.customer_phone}</span>
-                                  </div>
-                                )}
-                                <div className="text-gray-400 text-[11px] truncate max-w-[200px]">
-                                  {item.delivery_address || 'دمشق'}
-                                </div>
-                              </td>
+                          <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 space-y-1 text-xs">
+                            <div className="font-semibold text-gray-900">{item.customer_name}</div>
+                            {item.customer_phone && (
+                              <a
+                                href={`tel:${item.customer_phone}`}
+                                className="text-emerald-700 flex items-center gap-1 font-mono text-xs font-bold"
+                              >
+                                <Phone className="w-3 h-3 text-emerald-600" />
+                                <span dir="ltr">{item.customer_phone}</span>
+                              </a>
+                            )}
+                            <div className="text-gray-500 text-[11px] truncate">
+                              {item.delivery_address || 'دمشق'}
+                            </div>
+                          </div>
 
-                              <td className="py-3.5 px-4">
-                                <div className="font-semibold text-gray-900">${item.total_price.toFixed(2)} USD</div>
-                                <div className="text-rose-600 text-[10px]">
-                                  {lang === 'ar' ? 'عمولة المنصة:' : 'Fee (10%):'} -${item.platform_fee.toFixed(2)}
-                                </div>
-                              </td>
+                          <div className="flex items-center justify-between pt-1">
+                            <div>
+                              <div className="text-[10px] text-gray-400">{lang === 'ar' ? 'صافي أرباحك:' : 'Net Earning:'}</div>
+                              <span className="font-black text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-lg text-xs inline-block">
+                                +${item.net_vendor_amount.toFixed(2)} USD
+                              </span>
+                            </div>
 
-                              <td className="py-3.5 px-4">
-                                <span className="font-black text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg text-xs">
-                                  +${item.net_vendor_amount.toFixed(2)} USD
-                                </span>
-                              </td>
-
-                              <td className="py-3.5 px-4">
-                                <select
-                                  value={item.status}
-                                  disabled={orderUpdatingId === item.id}
-                                  onChange={(e) =>
-                                    handleUpdateOrderStatus(
-                                      item.id,
-                                      e.target.value as 'paid' | 'processing' | 'shipped' | 'delivered'
-                                    )
-                                  }
-                                  className="text-xs font-bold border border-gray-300 rounded-lg px-2 py-1 bg-white text-gray-800 focus:ring-1 focus:ring-amber-500 cursor-pointer"
-                                >
-                                  <option value="paid">{lang === 'ar' ? 'مدفوع - جديد' : 'Paid - New'}</option>
-                                  <option value="processing">{lang === 'ar' ? 'قيد التجهيز والتغليف' : 'Processing'}</option>
-                                  <option value="shipped">{lang === 'ar' ? 'تم التسليم للشحن' : 'Shipped'}</option>
-                                  <option value="delivered">{lang === 'ar' ? 'تم التسليم للعميل' : 'Delivered'}</option>
-                                </select>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                            <div className="w-1/2">
+                              <select
+                                value={item.status}
+                                disabled={orderUpdatingId === item.id}
+                                onChange={(e) =>
+                                  handleUpdateOrderStatus(
+                                    item.id,
+                                    e.target.value as 'paid' | 'processing' | 'shipped' | 'delivered'
+                                  )
+                                }
+                                className="w-full text-xs font-bold border border-gray-300 rounded-xl px-2.5 py-2 bg-white text-gray-800 focus:ring-1 focus:ring-amber-500 cursor-pointer"
+                              >
+                                <option value="paid">{lang === 'ar' ? 'مدفوع - جديد' : 'Paid - New'}</option>
+                                <option value="processing">{lang === 'ar' ? 'قيد التجهيز' : 'Processing'}</option>
+                                <option value="shipped">{lang === 'ar' ? 'تم التسليم للشحن' : 'Shipped'}</option>
+                                <option value="delivered">{lang === 'ar' ? 'تم التسليم للعميل' : 'Delivered'}</option>
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  </div>
+
+                    {/* Desktop Table View (md and above) */}
+                    <div className="hidden md:block bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-xs">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs text-start">
+                          <thead className="text-[11px] uppercase bg-gray-50 text-gray-500 font-bold border-b border-gray-100">
+                            <tr>
+                              <th className="py-3.5 px-4">{lang === 'ar' ? 'رقم الطلب' : 'Order #'}</th>
+                              <th className="py-3.5 px-4">{lang === 'ar' ? 'المنتج والكمية' : 'Product & Qty'}</th>
+                              <th className="py-3.5 px-4">{lang === 'ar' ? 'بيانات المستلم والتوصيل' : 'Customer & Delivery'}</th>
+                              <th className="py-3.5 px-4">{lang === 'ar' ? 'الإجمالي والعمولة' : 'Pricing & Fee'}</th>
+                              <th className="py-3.5 px-4">{lang === 'ar' ? 'صافي أرباحك' : 'Net Earning'}</th>
+                              <th className="py-3.5 px-4">{lang === 'ar' ? 'حالة التجهيز' : 'Status'}</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100">
+                            {orders.map((item) => (
+                              <tr key={item.id} className="hover:bg-gray-50/50">
+                                <td className="py-3.5 px-4">
+                                  <span className="font-mono font-bold text-gray-900 bg-slate-100 px-2 py-0.5 rounded text-[11px]">
+                                    {item.order_number}
+                                  </span>
+                                  <div className="text-[10px] text-gray-400 mt-1">
+                                    {new Date(item.created_at).toLocaleDateString(lang === 'ar' ? 'ar-SY' : 'en-US')}
+                                  </div>
+                                </td>
+
+                                <td className="py-3.5 px-4">
+                                  <div className="font-bold text-gray-900">{item.product_title}</div>
+                                  <div className="text-gray-500 text-[11px]">
+                                    {lang === 'ar' ? 'الكمية:' : 'Qty:'} {item.quantity} × ${item.unit_price} USD
+                                  </div>
+                                </td>
+
+                                <td className="py-3.5 px-4">
+                                  <div className="font-bold text-gray-900">{item.customer_name}</div>
+                                  {item.customer_phone && (
+                                    <div className="text-gray-500 flex items-center gap-1 font-mono text-[11px]">
+                                      <Phone className="w-3 h-3 text-emerald-600" />
+                                      <span dir="ltr">{item.customer_phone}</span>
+                                    </div>
+                                  )}
+                                  <div className="text-gray-400 text-[11px] truncate max-w-[200px]">
+                                    {item.delivery_address || 'دمشق'}
+                                  </div>
+                                </td>
+
+                                <td className="py-3.5 px-4">
+                                  <div className="font-semibold text-gray-900">${item.total_price.toFixed(2)} USD</div>
+                                  <div className="text-rose-600 text-[10px]">
+                                    {lang === 'ar' ? 'عمولة المنصة:' : 'Fee (10%):'} -${item.platform_fee.toFixed(2)}
+                                  </div>
+                                </td>
+
+                                <td className="py-3.5 px-4">
+                                  <span className="font-black text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg text-xs">
+                                    +${item.net_vendor_amount.toFixed(2)} USD
+                                  </span>
+                                </td>
+
+                                <td className="py-3.5 px-4">
+                                  <select
+                                    value={item.status}
+                                    disabled={orderUpdatingId === item.id}
+                                    onChange={(e) =>
+                                      handleUpdateOrderStatus(
+                                        item.id,
+                                        e.target.value as 'paid' | 'processing' | 'shipped' | 'delivered'
+                                      )
+                                    }
+                                    className="text-xs font-bold border border-gray-300 rounded-lg px-2 py-1 bg-white text-gray-800 focus:ring-1 focus:ring-amber-500 cursor-pointer"
+                                  >
+                                    <option value="paid">{lang === 'ar' ? 'مدفوع - جديد' : 'Paid - New'}</option>
+                                    <option value="processing">{lang === 'ar' ? 'قيد التجهيز والتغليف' : 'Processing'}</option>
+                                    <option value="shipped">{lang === 'ar' ? 'تم التسليم للشحن' : 'Shipped'}</option>
+                                    <option value="delivered">{lang === 'ar' ? 'تم التسليم للعميل' : 'Delivered'}</option>
+                                  </select>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </>
                 )}
               </div>
             )}
 
             {/* ================= TAB 3: WALLET & WITHDRAWALS (CHAM CASH) ================= */}
             {activeTab === 'wallet' && (
-              <div className="space-y-8">
+              <div className="space-y-6 sm:space-y-8">
                 {/* Available Balance & Financial Stats */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="bg-gradient-to-br from-emerald-600 to-emerald-800 text-white p-6 rounded-2xl shadow-md space-y-2 sm:col-span-2 lg:col-span-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                  <div className="bg-gradient-to-br from-emerald-600 to-emerald-800 text-white p-5 sm:p-6 rounded-2xl shadow-md space-y-2 sm:col-span-2 lg:col-span-1">
                     <span className="text-emerald-100 text-xs font-bold uppercase tracking-wider">
                       {lang === 'ar' ? 'الرصيد المتاح للسحب الفوري' : 'Available Balance'}
                     </span>
@@ -954,31 +1011,31 @@ export default function VendorDashboardPage() {
                     </div>
                   </div>
 
-                  <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs space-y-1">
+                  <div className="bg-white p-4 sm:p-5 rounded-2xl border border-gray-200 shadow-xs space-y-1">
                     <span className="text-gray-400 text-xs font-bold uppercase tracking-wider">
                       {lang === 'ar' ? 'إجمالي المبيعات' : 'Total Gross Sales'}
                     </span>
-                    <div className="text-2xl font-black text-gray-900">${totalGrossSales.toFixed(2)}</div>
+                    <div className="text-xl sm:text-2xl font-black text-gray-900">${totalGrossSales.toFixed(2)}</div>
                     <p className="text-[11px] text-gray-500 pt-2 border-t border-gray-100">
                       {lang === 'ar' ? 'قيمة مبيعاتك الإجمالية المدفوعة' : 'Gross customer payments'}
                     </p>
                   </div>
 
-                  <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs space-y-1">
+                  <div className="bg-white p-4 sm:p-5 rounded-2xl border border-gray-200 shadow-xs space-y-1">
                     <span className="text-gray-400 text-xs font-bold uppercase tracking-wider">
                       {lang === 'ar' ? 'طلبات سحب قيد الانتظار' : 'Pending Withdrawals'}
                     </span>
-                    <div className="text-2xl font-black text-amber-700">${totalPendingWithdrawals.toFixed(2)}</div>
+                    <div className="text-xl sm:text-2xl font-black text-amber-700">${totalPendingWithdrawals.toFixed(2)}</div>
                     <p className="text-[11px] text-gray-500 pt-2 border-t border-gray-100">
                       {lang === 'ar' ? 'بانتظار إشعار الحوالة من الإدارة' : 'Pending transfer voucher'}
                     </p>
                   </div>
 
-                  <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs space-y-1">
+                  <div className="bg-white p-4 sm:p-5 rounded-2xl border border-gray-200 shadow-xs space-y-1">
                     <span className="text-gray-400 text-xs font-bold uppercase tracking-wider">
                       {lang === 'ar' ? 'إجمالي المبالغ المستلمة' : 'Settled Payouts'}
                     </span>
-                    <div className="text-2xl font-black text-slate-800">${totalPaidWithdrawals.toFixed(2)}</div>
+                    <div className="text-xl sm:text-2xl font-black text-slate-800">${totalPaidWithdrawals.toFixed(2)}</div>
                     <p className="text-[11px] text-gray-500 pt-2 border-t border-gray-100">
                       {lang === 'ar' ? 'تم استلامها كاش أو شام كاش' : 'Received in Syria'}
                     </p>
@@ -986,11 +1043,11 @@ export default function VendorDashboardPage() {
                 </div>
 
                 {/* Syrian Local Payment Method (Cham Cash Form) */}
-                <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-xs space-y-6">
+                <div className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-6 shadow-xs space-y-4 sm:space-y-6">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-4">
                     <div>
-                      <h3 className="text-base font-black text-gray-900 flex items-center gap-2">
-                        <CreditCard className="w-5 h-5 text-emerald-600" />
+                      <h3 className="text-sm sm:text-base font-black text-gray-900 flex items-center gap-2">
+                        <CreditCard className="w-5 h-5 text-emerald-600 shrink-0" />
                         <span>{lang === 'ar' ? 'حسابات استلام الحوالات (شام كاش / سيريتل كاش / بنوك)' : 'Syrian Payout Methods (Cham Cash)'}</span>
                       </h3>
                       <p className="text-xs text-gray-500 mt-0.5">
@@ -1002,7 +1059,7 @@ export default function VendorDashboardPage() {
 
                     <button
                       onClick={() => setIsWithdrawModalOpen(true)}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition cursor-pointer"
+                      className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition cursor-pointer"
                     >
                       <ArrowDownToLine className="w-4 h-4" />
                       <span>{lang === 'ar' ? 'طلب سحب رصيد' : 'Request Withdrawal'}</span>
@@ -1010,9 +1067,9 @@ export default function VendorDashboardPage() {
                   </div>
 
                   {/* Inline Form to Add / Save Cham Cash Details */}
-                  <form onSubmit={handleSaveChamCashMethod} className="bg-slate-50/80 p-4 rounded-2xl border border-slate-200 space-y-3">
+                  <form onSubmit={handleSaveChamCashMethod} className="bg-slate-50/80 p-3.5 sm:p-4 rounded-2xl border border-slate-200 space-y-3">
                     <div className="text-xs font-bold text-gray-800 flex items-center gap-2">
-                      <Plus className="w-4 h-4 text-emerald-600" />
+                      <Plus className="w-4 h-4 text-emerald-600 shrink-0" />
                       <span>{lang === 'ar' ? 'إضافة وسيلة استلام جديدة (شام كاش / سيريتل كاش / بنك سوري)' : 'Add New Payout Method'}</span>
                     </div>
 
@@ -1069,13 +1126,13 @@ export default function VendorDashboardPage() {
                         value={chamCashForm.notes}
                         onChange={(e) => setChamCashForm({ ...chamCashForm, notes: e.target.value })}
                         placeholder={lang === 'ar' ? 'ملاحظات إضافية (اختياري، مثلاً: فرع البرامكة دمشق)' : 'Optional notes (branch, city)'}
-                        className="w-full sm:w-2/3 text-xs px-3 py-1.5 rounded-lg border border-gray-300 bg-white text-gray-700"
+                        className="w-full sm:w-2/3 text-xs px-3 py-2 rounded-xl border border-gray-300 bg-white text-gray-700"
                       />
 
                       <button
                         type="submit"
                         disabled={addingMethod}
-                        className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-xs cursor-pointer disabled:opacity-60"
+                        className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-xs cursor-pointer disabled:opacity-60"
                       >
                         {addingMethod ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                         <span>{lang === 'ar' ? 'حفظ وسيلة الاستلام' : 'Save Method'}</span>
@@ -1094,27 +1151,27 @@ export default function VendorDashboardPage() {
                         {lang === 'ar' ? 'لم تقم بحفظ أي حساب شام كاش بعد.' : 'No saved methods yet.'}
                       </p>
                     ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                         {payoutMethods.map((m) => (
                           <div
                             key={m.id}
                             className="p-3.5 rounded-xl border border-gray-200 bg-white relative space-y-1.5 shadow-2xs hover:border-emerald-300 transition"
                           >
                             <div className="flex items-center justify-between">
-                              <span className="text-[11px] font-black px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                              <span className="text-[11px] font-black px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 truncate">
                                 {m.method_name}
                               </span>
                               <button
                                 onClick={() => handleDeletePayoutMethod(m.id)}
-                                className="text-gray-400 hover:text-rose-600 transition cursor-pointer"
+                                className="text-gray-400 hover:text-rose-600 transition cursor-pointer p-1"
                                 title="حذف"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             </div>
                             <p className="font-mono font-bold text-gray-900 text-xs">{m.account_number}</p>
-                            <p className="text-gray-600 text-[11px]">{m.account_holder_name}</p>
-                            {m.notes && <p className="text-gray-400 text-[10px]">{m.notes}</p>}
+                            <p className="text-gray-600 text-[11px] truncate">{m.account_holder_name}</p>
+                            {m.notes && <p className="text-gray-400 text-[10px] truncate">{m.notes}</p>}
                           </div>
                         ))}
                       </div>
@@ -1122,9 +1179,9 @@ export default function VendorDashboardPage() {
                   </div>
                 </div>
 
-                {/* Withdrawal Requests History Table */}
-                <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-xs space-y-4">
-                  <div className="flex items-center justify-between">
+                {/* Withdrawal Requests History */}
+                <div className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-6 shadow-xs space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
                       <h3 className="text-sm font-black text-gray-900">
                         {lang === 'ar' ? 'سجل طلبات السحب والحوالات المرسلة للإدارة' : 'Withdrawals History'}
@@ -1138,7 +1195,7 @@ export default function VendorDashboardPage() {
 
                     <button
                       onClick={() => setIsWithdrawModalOpen(true)}
-                      className="px-3.5 py-1.5 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 transition cursor-pointer shadow-xs"
+                      className="w-full sm:w-auto px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 transition cursor-pointer shadow-xs text-center"
                     >
                       {lang === 'ar' ? 'طلب سحب جديد' : 'New Payout Request'}
                     </button>
@@ -1149,23 +1206,17 @@ export default function VendorDashboardPage() {
                       {lang === 'ar' ? 'لا توجد طلبات سحب سابقة' : 'No withdrawal requests yet'}
                     </div>
                   ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-xs text-left rtl:text-right">
-                        <thead className="text-[11px] uppercase bg-gray-50 text-gray-500 font-bold border-y border-gray-100">
-                          <tr>
-                            <th className="py-3 px-4">{lang === 'ar' ? 'رقم الطلب' : 'Request ID'}</th>
-                            <th className="py-3 px-4">{lang === 'ar' ? 'المبلغ المطلوب' : 'Amount'}</th>
-                            <th className="py-3 px-4">{lang === 'ar' ? 'الحالة' : 'Status'}</th>
-                            <th className="py-3 px-4">{lang === 'ar' ? 'إشعار الحوالة (في سوريا)' : 'Voucher Ref'}</th>
-                            <th className="py-3 px-4">{lang === 'ar' ? 'تاريخ الطلب' : 'Date'}</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                          {withdrawals.map((w) => (
-                            <tr key={w.id} className="hover:bg-gray-50/50">
-                              <td className="py-3 px-4 font-mono font-bold text-gray-700">{w.id}</td>
-                              <td className="py-3 px-4 font-black text-gray-900 text-sm">${Number(w.amount).toFixed(2)} USD</td>
-                              <td className="py-3 px-4">
+                    <>
+                      {/* Mobile Cards for Withdrawals */}
+                      <div className="block md:hidden space-y-2.5">
+                        {withdrawals.map((w) => (
+                          <div key={w.id} className="p-3.5 rounded-xl border border-gray-200 bg-slate-50/50 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="font-mono font-bold text-gray-700 text-xs">{w.id}</span>
+                              <span className="font-black text-gray-900 text-sm">${Number(w.amount).toFixed(2)} USD</span>
+                            </div>
+                            <div className="flex items-center justify-between text-xs">
+                              <div>
                                 {w.status === 'paid' ? (
                                   <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
                                     <CheckCircle2 className="w-3 h-3 text-emerald-600" />
@@ -1177,26 +1228,70 @@ export default function VendorDashboardPage() {
                                     <span>{lang === 'ar' ? 'قيد التحويل في سوريا' : 'Pending Transfer'}</span>
                                   </span>
                                 )}
-                              </td>
-                              <td className="py-3 px-4 font-mono text-gray-700">
-                                {w.transaction_ref ? (
-                                  <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                                    {w.transaction_ref}
-                                  </span>
-                                ) : (
-                                  <span className="text-gray-400 italic">
-                                    {lang === 'ar' ? 'بانتظار إشعار الإدارة' : 'Awaiting voucher'}
-                                  </span>
-                                )}
-                              </td>
-                              <td className="py-3 px-4 text-gray-400">
+                              </div>
+                              <span className="text-gray-400 text-[10px]">
                                 {new Date(w.created_at).toLocaleDateString(lang === 'ar' ? 'ar-SY' : 'en-US')}
-                              </td>
+                              </span>
+                            </div>
+                            {w.transaction_ref && (
+                              <div className="text-[11px] font-mono text-emerald-800 bg-emerald-50 p-1.5 rounded-lg border border-emerald-200">
+                                {lang === 'ar' ? 'رقم الإشعار: ' : 'Voucher: '} {w.transaction_ref}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Desktop Table for Withdrawals */}
+                      <div className="hidden md:block overflow-x-auto">
+                        <table className="w-full text-xs text-start">
+                          <thead className="text-[11px] uppercase bg-gray-50 text-gray-500 font-bold border-y border-gray-100">
+                            <tr>
+                              <th className="py-3 px-4">{lang === 'ar' ? 'رقم الطلب' : 'Request ID'}</th>
+                              <th className="py-3 px-4">{lang === 'ar' ? 'المبلغ المطلوب' : 'Amount'}</th>
+                              <th className="py-3 px-4">{lang === 'ar' ? 'الحالة' : 'Status'}</th>
+                              <th className="py-3 px-4">{lang === 'ar' ? 'إشعار الحوالة (في سوريا)' : 'Voucher Ref'}</th>
+                              <th className="py-3 px-4">{lang === 'ar' ? 'تاريخ الطلب' : 'Date'}</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100">
+                            {withdrawals.map((w) => (
+                              <tr key={w.id} className="hover:bg-gray-50/50">
+                                <td className="py-3 px-4 font-mono font-bold text-gray-700">{w.id}</td>
+                                <td className="py-3 px-4 font-black text-gray-900 text-sm">${Number(w.amount).toFixed(2)} USD</td>
+                                <td className="py-3 px-4">
+                                  {w.status === 'paid' ? (
+                                    <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                      <span>{lang === 'ar' ? 'تم التسليم كاش' : 'Paid & Settled'}</span>
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                      <Clock className="w-3 h-3 text-amber-600" />
+                                      <span>{lang === 'ar' ? 'قيد التحويل في سوريا' : 'Pending Transfer'}</span>
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="py-3 px-4 font-mono text-gray-700">
+                                  {w.transaction_ref ? (
+                                    <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                                      {w.transaction_ref}
+                                    </span>
+                                  ) : (
+                                    <span className="text-gray-400 italic">
+                                      {lang === 'ar' ? 'بانتظار إشعار الإدارة' : 'Awaiting voucher'}
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="py-3 px-4 text-gray-400">
+                                  {new Date(w.created_at).toLocaleDateString(lang === 'ar' ? 'ar-SY' : 'en-US')}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
                   )}
                 </div>
               </div>
@@ -1205,13 +1300,13 @@ export default function VendorDashboardPage() {
         )}
       </main>
 
-      {/* ================= MODAL: ADD / EDIT PRODUCT ================= */}
+      {/* ================= MODAL: ADD / EDIT PRODUCT (FULLY RESPONSIVE MOBILE SHEET) ================= */}
       {isProductModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl space-y-5 my-8 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-2xl w-full p-4 sm:p-6 shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-              <h3 className="text-base font-black text-gray-900 flex items-center gap-2">
-                <Package className="w-5 h-5 text-amber-600" />
+              <h3 className="text-sm sm:text-base font-black text-gray-900 flex items-center gap-2">
+                <Package className="w-5 h-5 text-amber-600 shrink-0" />
                 <span>
                   {editingProductId
                     ? lang === 'ar' ? 'تعديل بيانات المنتج والموقع' : 'Edit Product & Location'
@@ -1220,14 +1315,14 @@ export default function VendorDashboardPage() {
               </h3>
               <button
                 onClick={() => setIsProductModalOpen(false)}
-                className="p-1 rounded-lg text-gray-400 hover:text-gray-600 cursor-pointer"
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveProduct} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <form onSubmit={handleSaveProduct} className="space-y-3 sm:space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
                   <label className="block text-xs font-bold text-gray-700 mb-1">
                     {lang === 'ar' ? 'اسم المنتج بالعربية *' : 'Arabic Title *'}
@@ -1238,7 +1333,7 @@ export default function VendorDashboardPage() {
                     value={productForm.title_ar}
                     onChange={(e) => setProductForm({ ...productForm, title_ar: e.target.value })}
                     placeholder="مثال: سلة تموينية متكاملة"
-                    className="w-full text-xs px-3 py-2 rounded-xl border border-gray-300 focus:ring-1 focus:ring-amber-500"
+                    className="w-full text-xs px-3 py-2.5 rounded-xl border border-gray-300 focus:ring-1 focus:ring-amber-500"
                   />
                 </div>
 
@@ -1252,12 +1347,12 @@ export default function VendorDashboardPage() {
                     value={productForm.title_en}
                     onChange={(e) => setProductForm({ ...productForm, title_en: e.target.value })}
                     placeholder="e.g. Comprehensive Family Nutrition Box"
-                    className="w-full text-xs px-3 py-2 rounded-xl border border-gray-300 focus:ring-1 focus:ring-amber-500"
+                    className="w-full text-xs px-3 py-2.5 rounded-xl border border-gray-300 focus:ring-1 focus:ring-amber-500"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
                   <label className="block text-xs font-bold text-gray-700 mb-1">
                     {lang === 'ar' ? 'سعر البيع لمرة واحدة ($ USD) *' : 'Price ($ USD) *'}
@@ -1269,7 +1364,7 @@ export default function VendorDashboardPage() {
                     value={productForm.price_usd}
                     onChange={(e) => setProductForm({ ...productForm, price_usd: e.target.value })}
                     placeholder="55.00"
-                    className="w-full text-xs px-3 py-2 rounded-xl border border-gray-300 focus:ring-1 focus:ring-amber-500 font-bold"
+                    className="w-full text-xs px-3 py-2.5 rounded-xl border border-gray-300 focus:ring-1 focus:ring-amber-500 font-bold"
                   />
                 </div>
 
@@ -1280,7 +1375,7 @@ export default function VendorDashboardPage() {
                   <select
                     value={productForm.category}
                     onChange={(e) => setProductForm({ ...productForm, category: e.target.value as any })}
-                    className="w-full text-xs px-3 py-2 rounded-xl border border-gray-300 focus:ring-1 focus:ring-amber-500"
+                    className="w-full text-xs px-3 py-2.5 rounded-xl border border-gray-300 focus:ring-1 focus:ring-amber-500"
                   >
                     <option value="food">{lang === 'ar' ? 'سلال غذائية وتموينية' : 'Food & Nutrition'}</option>
                     <option value="health">{lang === 'ar' ? 'أدوية ورعاية صحية' : 'Health & Medicine'}</option>
@@ -1299,7 +1394,7 @@ export default function VendorDashboardPage() {
                   value={productForm.description_ar}
                   onChange={(e) => setProductForm({ ...productForm, description_ar: e.target.value })}
                   placeholder="محتويات الباقة ومواصفات السلعة..."
-                  className="w-full text-xs px-3 py-2 rounded-xl border border-gray-300 focus:ring-1 focus:ring-amber-500"
+                  className="w-full text-xs px-3 py-2.5 rounded-xl border border-gray-300 focus:ring-1 focus:ring-amber-500"
                 />
               </div>
 
@@ -1312,7 +1407,7 @@ export default function VendorDashboardPage() {
                   value={productForm.image_url}
                   onChange={(e) => setProductForm({ ...productForm, image_url: e.target.value })}
                   placeholder="https://..."
-                  className="w-full text-xs px-3 py-2 rounded-xl border border-gray-300 focus:ring-1 focus:ring-amber-500"
+                  className="w-full text-xs px-3 py-2.5 rounded-xl border border-gray-300 focus:ring-1 focus:ring-amber-500"
                 />
               </div>
 
@@ -1326,18 +1421,18 @@ export default function VendorDashboardPage() {
                 }
               />
 
-              <div className="pt-2 flex justify-end gap-2 border-t border-gray-100">
+              <div className="pt-2 flex flex-col-reverse sm:flex-row justify-end gap-2 border-t border-gray-100">
                 <button
                   type="button"
                   onClick={() => setIsProductModalOpen(false)}
-                  className="px-4 py-2 rounded-xl border border-gray-200 text-gray-700 text-xs font-bold hover:bg-gray-50 cursor-pointer"
+                  className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-gray-200 text-gray-700 text-xs font-bold hover:bg-gray-50 cursor-pointer text-center"
                 >
                   {lang === 'ar' ? 'إلغاء' : 'Cancel'}
                 </button>
                 <button
                   type="submit"
                   disabled={actionLoading}
-                  className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-md cursor-pointer disabled:opacity-60"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-md cursor-pointer disabled:opacity-60"
                 >
                   {actionLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   <span>
@@ -1354,18 +1449,18 @@ export default function VendorDashboardPage() {
 
       {/* ================= MODAL: REQUEST WITHDRAWAL (CHAM CASH) ================= */}
       {isWithdrawModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-md w-full p-4 sm:p-6 shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-gray-100 pb-3">
               <h3 className="text-sm font-black text-gray-900 flex items-center gap-2">
-                <ArrowDownToLine className="w-4 h-4 text-emerald-600" />
+                <ArrowDownToLine className="w-4 h-4 text-emerald-600 shrink-0" />
                 <span>{lang === 'ar' ? 'طلب سحب أرباح المتجر (شام كاش)' : 'Request Cham Cash Withdrawal'}</span>
               </h3>
               <button
                 onClick={() => setIsWithdrawModalOpen(false)}
-                className="p-1 rounded-lg text-gray-400 hover:text-gray-600 cursor-pointer"
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 cursor-pointer"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
@@ -1391,7 +1486,7 @@ export default function VendorDashboardPage() {
                   value={withdrawAmount}
                   onChange={(e) => setWithdrawAmount(e.target.value)}
                   placeholder="مثال: 50"
-                  className="w-full text-xs px-3 py-2 rounded-xl border border-gray-300 focus:ring-1 focus:ring-emerald-500 font-bold"
+                  className="w-full text-xs px-3 py-2.5 rounded-xl border border-gray-300 focus:ring-1 focus:ring-emerald-500 font-bold"
                 />
               </div>
 
@@ -1409,7 +1504,7 @@ export default function VendorDashboardPage() {
                   <select
                     value={withdrawMethodId}
                     onChange={(e) => setWithdrawMethodId(e.target.value)}
-                    className="w-full text-xs px-3 py-2 rounded-xl border border-gray-300 focus:ring-1 focus:ring-emerald-500 font-semibold"
+                    className="w-full text-xs px-3 py-2.5 rounded-xl border border-gray-300 focus:ring-1 focus:ring-emerald-500 font-semibold"
                   >
                     {payoutMethods.map((m) => (
                       <option key={m.id} value={m.id}>
@@ -1426,18 +1521,18 @@ export default function VendorDashboardPage() {
                   : 'Amount is deducted from your balance immediately. Admin manually transfers funds in Syria and records the voucher.'}
               </p>
 
-              <div className="pt-2 flex justify-end gap-2 border-t border-gray-100">
+              <div className="pt-2 flex flex-col-reverse sm:flex-row justify-end gap-2 border-t border-gray-100">
                 <button
                   type="button"
                   onClick={() => setIsWithdrawModalOpen(false)}
-                  className="px-4 py-2 rounded-xl border border-gray-200 text-gray-700 text-xs font-bold hover:bg-gray-50 cursor-pointer"
+                  className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-gray-200 text-gray-700 text-xs font-bold hover:bg-gray-50 cursor-pointer text-center"
                 >
                   {lang === 'ar' ? 'إلغاء' : 'Cancel'}
                 </button>
                 <button
                   type="submit"
                   disabled={actionLoading || payoutMethods.length === 0}
-                  className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md cursor-pointer disabled:opacity-60"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md cursor-pointer disabled:opacity-60"
                 >
                   {actionLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   <span>{lang === 'ar' ? 'تأكيد طلب السحب' : 'Confirm Withdrawal'}</span>

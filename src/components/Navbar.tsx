@@ -19,7 +19,8 @@ import {
   ChevronDown,
   Settings,
   MapPin,
-  MoreVertical,
+  ChevronRight,
+  ChevronLeft,
 } from 'lucide-react';
 
 export default function Navbar() {
@@ -101,7 +102,7 @@ export default function Navbar() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Close dropdown on route change
+  // Close drawer and dropdown on route change
   useEffect(() => {
     setDropdownOpen(false);
     setMobileMenuOpen(false);
@@ -112,6 +113,7 @@ export default function Navbar() {
     setUser(null);
     setUserRole(null);
     setDropdownOpen(false);
+    setMobileMenuOpen(false);
     router.push('/');
   };
 
@@ -130,25 +132,25 @@ export default function Navbar() {
     '';
 
   return (
-    <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-xs">
+    <header className="sticky top-0 z-50 w-full bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-2xs">
       {/* Top Banner: One-time purchase transparency */}
-      <div className="bg-slate-900 text-slate-200 text-xs py-1.5 px-4 text-center flex items-center justify-center gap-2 font-medium">
+      <div className="bg-slate-900 text-slate-200 text-[11px] sm:text-xs py-1.5 px-3 sm:px-4 text-center flex items-center justify-center gap-1.5 sm:gap-2 font-medium">
         <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-        <span>{t('oneTimePayment')}</span>
+        <span className="truncate">{t('oneTimePayment')}</span>
         <span className="hidden sm:inline text-slate-500">•</span>
         <span className="hidden sm:inline text-slate-400">{t('securePayment')}</span>
       </div>
 
-      <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+      <nav className="w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2 sm:gap-4">
         {/* Brand Logo */}
-        <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="w-9 h-9 rounded-xl bg-emerald-600 flex items-center justify-center text-white font-black text-lg shadow-md shadow-emerald-200 group-hover:scale-105 transition-transform">
+        <Link href="/" className="flex items-center gap-2 sm:gap-2.5 group shrink-0">
+          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-emerald-600 flex items-center justify-center text-white font-black text-base sm:text-lg shadow-md shadow-emerald-200 group-hover:scale-105 transition-transform">
             S
           </div>
           <div>
-            <div className="text-lg font-black text-gray-900 tracking-tight flex items-center gap-1.5">
+            <div className="text-base sm:text-lg font-black text-gray-900 tracking-tight flex items-center gap-1.5">
               <span>{t('storeName')}</span>
-              <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.2 rounded font-bold">
+              <span className="text-[9px] sm:text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.2 rounded font-bold">
                 1-TIME
               </span>
             </div>
@@ -213,38 +215,38 @@ export default function Navbar() {
           )}
         </div>
 
-        {/* Right Actions: Language Switcher, Vendor Button & Profile Dropdown */}
-        <div className="flex items-center gap-2.5">
+        {/* Right Actions: Language Switcher, Prominent Buttons & Hamburger */}
+        <div className="flex items-center gap-1.5 sm:gap-2.5">
           {/* Language Toggle Button */}
           <button
             type="button"
             onClick={toggleLang}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 hover:border-gray-300 bg-gray-50 text-xs font-bold text-gray-700 hover:bg-gray-100 transition cursor-pointer"
+            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-gray-200 hover:border-gray-300 bg-gray-50 text-xs font-bold text-gray-700 hover:bg-gray-100 transition cursor-pointer"
             title="Switch Language / تغيير اللغة"
           >
-            <Globe className="w-3.5 h-3.5 text-emerald-600" />
-            <span>{t('langToggle')}</span>
+            <Globe className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+            <span className="uppercase text-[11px]">{t('langToggle')}</span>
           </button>
 
-          {/* Prominent Vendor Dashboard Button (ONLY for vendor role) */}
+          {/* Prominent Vendor Dashboard Button (Desktop ONLY for vendor role) */}
           {user && userRole === 'vendor' && (
             <Link
               href="/vendor"
-              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-black shadow-xs hover:shadow transition"
+              className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-black shadow-xs hover:shadow transition"
             >
               <Store className="w-3.5 h-3.5 text-amber-200" />
               <span>{lang === 'ar' ? 'لوحة التاجر' : 'Vendor Dashboard'}</span>
             </Link>
           )}
 
-          {/* User Auth Buttons / Profile Dropdown Menu */}
+          {/* User Auth Buttons / Profile Dropdown Menu (Desktop) */}
           {user ? (
             <div className="relative" ref={dropdownRef}>
               {/* Dropdown Trigger Button with Google Avatar */}
               <button
                 type="button"
                 onClick={() => setDropdownOpen(!dropdownOpen)}
-                className="inline-flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-900 hover:bg-emerald-100/90 px-2.5 py-1.5 rounded-xl text-xs font-bold transition shadow-2xs cursor-pointer"
+                className="inline-flex items-center gap-1.5 sm:gap-2 bg-emerald-50 border border-emerald-200 text-emerald-900 hover:bg-emerald-100/90 px-2 sm:px-2.5 py-1.5 rounded-xl text-xs font-bold transition shadow-2xs cursor-pointer"
               >
                 {/* Google Avatar or User icon */}
                 {googleAvatarUrl && !avatarError ? (
@@ -260,7 +262,7 @@ export default function Navbar() {
                     <User className="w-3.5 h-3.5" />
                   </div>
                 )}
-                <span className="max-w-[100px] truncate hidden sm:inline">{displayName}</span>
+                <span className="max-w-[80px] sm:max-w-[110px] truncate hidden sm:inline">{displayName}</span>
                 <ChevronDown
                   className={`w-3.5 h-3.5 text-gray-500 transition-transform ${
                     dropdownOpen ? 'rotate-180' : ''
@@ -268,11 +270,11 @@ export default function Navbar() {
                 />
               </button>
 
-              {/* Functional Profile Dropdown Menu based on Role */}
+              {/* Functional Profile Dropdown Menu */}
               {dropdownOpen && (
-                <div className="absolute end-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50 animate-in fade-in zoom-in-95">
+                <div className="absolute end-0 mt-2 w-64 max-w-[calc(100vw-1.5rem)] bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50 animate-in fade-in zoom-in-95">
                   {/* Identity Header */}
-                  <div className="px-4 py-2.5 border-b border-gray-100">
+                  <div className="px-4 py-2.5 border-b border-gray-100 text-start">
                     <p className="font-bold text-gray-900 text-xs truncate">{displayName}</p>
                     <p className="text-[11px] text-gray-400 truncate font-mono">{user.email}</p>
                     <div className="mt-1.5">
@@ -297,13 +299,13 @@ export default function Navbar() {
 
                   {/* Real Functional Links based on User Role */}
                   <div className="py-1">
-                    {/* 1. For Customer Role (Buyers) */}
+                    {/* For Customer Role */}
                     {userRole !== 'vendor' && (
                       <>
                         <Link
                           href="/profile/orders"
                           onClick={() => setDropdownOpen(false)}
-                          className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-emerald-50 hover:text-emerald-900 transition"
+                          className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-emerald-50 hover:text-emerald-900 transition text-start"
                         >
                           <ShoppingBag className="w-4 h-4 text-emerald-600 shrink-0" />
                           <span>{lang === 'ar' ? 'مشترياتي (طلباتي السابقة)' : 'My Purchases'}</span>
@@ -312,7 +314,7 @@ export default function Navbar() {
                         <Link
                           href="/profile/addresses"
                           onClick={() => setDropdownOpen(false)}
-                          className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-emerald-50 hover:text-emerald-900 transition"
+                          className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-emerald-50 hover:text-emerald-900 transition text-start"
                         >
                           <MapPin className="w-4 h-4 text-emerald-600 shrink-0" />
                           <span>{lang === 'ar' ? 'عناويني وموقعي في سوريا' : 'Delivery Addresses'}</span>
@@ -320,13 +322,13 @@ export default function Navbar() {
                       </>
                     )}
 
-                    {/* 2. For Vendor Role (Sellers) */}
+                    {/* For Vendor Role */}
                     {userRole === 'vendor' && (
                       <>
                         <Link
                           href="/vendor"
                           onClick={() => setDropdownOpen(false)}
-                          className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-amber-50 hover:text-amber-900 transition"
+                          className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-amber-50 hover:text-amber-900 transition text-start"
                         >
                           <Store className="w-4 h-4 text-amber-600 shrink-0" />
                           <span>{lang === 'ar' ? 'لوحة البائع' : 'Vendor Dashboard'}</span>
@@ -335,7 +337,7 @@ export default function Navbar() {
                         <Link
                           href="/vendor/settings"
                           onClick={() => setDropdownOpen(false)}
-                          className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-amber-50 hover:text-amber-900 transition"
+                          className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-amber-50 hover:text-amber-900 transition text-start"
                         >
                           <Settings className="w-4 h-4 text-amber-600 shrink-0" />
                           <span>{lang === 'ar' ? 'إعدادات المتجر والموقع' : 'Store Settings & Location'}</span>
@@ -343,12 +345,12 @@ export default function Navbar() {
                       </>
                     )}
 
-                    {/* 3. For Admin Role */}
+                    {/* For Admin Role */}
                     {userRole === 'admin' && (
                       <Link
                         href="/admin"
                         onClick={() => setDropdownOpen(false)}
-                        className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-slate-100 hover:text-slate-900 transition"
+                        className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-slate-100 hover:text-slate-900 transition text-start"
                       >
                         <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
                         <span>{lang === 'ar' ? 'لوحة إدارة المنصة' : 'Admin Operations'}</span>
@@ -360,7 +362,7 @@ export default function Navbar() {
                   <div className="border-t border-gray-100 pt-1">
                     <button
                       onClick={handleSignOut}
-                      className="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                      className="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 transition cursor-pointer text-start"
                     >
                       <LogOut className="w-4 h-4 shrink-0" />
                       <span>{t('signOut')}</span>
@@ -370,133 +372,189 @@ export default function Navbar() {
               )}
             </div>
           ) : (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 sm:gap-2">
               <Link
                 href="/auth/login"
-                className="text-xs font-bold text-gray-700 hover:text-emerald-700 px-2.5 py-1.5 rounded-lg transition hidden sm:inline"
+                className="text-xs font-bold text-gray-700 hover:text-emerald-700 px-2 sm:px-2.5 py-1.5 rounded-lg transition hidden sm:inline"
               >
                 {t('signIn')}
               </Link>
               <Link
                 href="/auth/signup"
-                className="inline-flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold shadow-xs transition"
+                className="inline-flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white px-3 sm:px-3.5 py-1.5 rounded-lg text-xs font-bold shadow-xs transition"
               >
                 <span>{t('signUp')}</span>
               </Link>
             </div>
           )}
 
-          {/* Mobile menu toggle */}
+          {/* Mobile hamburger menu toggle */}
           <button
+            type="button"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-2 rounded-lg text-gray-600 md:hidden hover:bg-gray-100 cursor-pointer"
+            className="p-2 rounded-xl text-gray-700 md:hidden hover:bg-gray-100 active:bg-gray-200 transition cursor-pointer"
+            aria-label="Toggle Navigation Menu"
           >
             {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
         </div>
       </nav>
 
-      {/* Mobile Drawer (Strictly enforcing role-based visibility) */}
+      {/* Mobile Drawer (Responsive Overlay with Role-Based Navigation) */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-t border-gray-100 bg-white px-4 py-4 space-y-2">
-          <Link
-            href="/"
-            onClick={() => setMobileMenuOpen(false)}
-            className="block px-3 py-2 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50"
-          >
-            {t('home')}
-          </Link>
-          <Link
-            href="/products"
-            onClick={() => setMobileMenuOpen(false)}
-            className="block px-3 py-2 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50"
-          >
-            {t('products')}
-          </Link>
-
-          {/* Customer Links in Mobile */}
-          {user && userRole !== 'vendor' && (
-            <>
-              <Link
-                href="/profile/orders"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold text-gray-700 hover:bg-emerald-50 hover:text-emerald-900"
-              >
-                <ShoppingBag className="w-4 h-4 text-emerald-600" />
-                <span>{lang === 'ar' ? 'مشترياتي (طلباتي السابقة)' : 'My Purchases'}</span>
-              </Link>
-
-              <Link
-                href="/profile/addresses"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold text-gray-700 hover:bg-emerald-50 hover:text-emerald-900"
-              >
-                <MapPin className="w-4 h-4 text-emerald-600" />
-                <span>{lang === 'ar' ? 'عناويني وموقعي في سوريا' : 'Delivery Addresses'}</span>
-              </Link>
-            </>
-          )}
-
-          {/* Vendor Links in Mobile */}
-          {user && userRole === 'vendor' && (
-            <>
-              <Link
-                href="/vendor"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-bold text-amber-900 bg-amber-50 border border-amber-200"
-              >
-                <Store className="w-4 h-4 text-amber-600" />
-                <span>{lang === 'ar' ? 'لوحة البائع' : 'Vendor Dashboard'}</span>
-              </Link>
-
-              <Link
-                href="/vendor/settings"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold text-gray-700 hover:bg-amber-50"
-              >
-                <Settings className="w-4 h-4 text-amber-600" />
-                <span>{lang === 'ar' ? 'إعدادات المتجر والموقع' : 'Store Settings & Location'}</span>
-              </Link>
-            </>
-          )}
-
-          {/* Admin Link in Mobile */}
-          {user && userRole === 'admin' && (
-            <Link
-              href="/admin"
-              onClick={() => setMobileMenuOpen(false)}
-              className="block px-3 py-2 rounded-lg text-sm font-semibold text-slate-800 bg-slate-100"
-            >
-              🛡️ {t('adminPortal')}
-            </Link>
-          )}
-
+        <div className="md:hidden border-t border-gray-100 bg-white shadow-xl px-4 py-4 space-y-3 animate-in slide-in-from-top-2 max-h-[85vh] overflow-y-auto">
+          {/* User Identity Card on Mobile */}
           {user ? (
-            <div className="pt-2 border-t border-gray-100">
-              <button
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  handleSignOut();
-                }}
-                className="w-full text-left px-3 py-2 rounded-lg text-sm font-semibold text-rose-600 hover:bg-rose-50 cursor-pointer flex items-center gap-2"
+            <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between gap-3 text-start">
+              <div className="flex items-center gap-2.5 min-w-0">
+                {googleAvatarUrl && !avatarError ? (
+                  <img
+                    src={googleAvatarUrl}
+                    alt={displayName}
+                    referrerPolicy="no-referrer"
+                    onError={() => setAvatarError(true)}
+                    className="w-9 h-9 rounded-full object-cover ring-2 ring-emerald-500 shrink-0"
+                  />
+                ) : (
+                  <div className="w-9 h-9 rounded-full bg-emerald-200 text-emerald-800 flex items-center justify-center text-xs font-black shrink-0">
+                    <User className="w-5 h-5" />
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <p className="font-bold text-gray-900 text-xs truncate">{displayName}</p>
+                  <p className="text-[10px] text-gray-400 truncate font-mono">{user.email}</p>
+                </div>
+              </div>
+              <div>
+                {userRole === 'vendor' ? (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-200 shrink-0">
+                    {lang === 'ar' ? 'تاجر' : 'Vendor'}
+                  </span>
+                ) : userRole === 'admin' ? (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-900 text-white shrink-0">
+                    {lang === 'ar' ? 'مدير' : 'Admin'}
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-200 shrink-0">
+                    {lang === 'ar' ? 'زبون' : 'Customer'}
+                  </span>
+                )}
+              </div>
+            </div>
+          ) : null}
+
+          {/* Navigation Links */}
+          <div className="space-y-1 text-start">
+            <Link
+              href="/"
+              onClick={() => setMobileMenuOpen(false)}
+              className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold transition ${
+                pathname === '/' ? 'bg-emerald-50 text-emerald-900 font-bold' : 'text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              <span>{t('home')}</span>
+              {lang === 'ar' ? <ChevronLeft className="w-4 h-4 text-gray-400" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
+            </Link>
+
+            <Link
+              href="/products"
+              onClick={() => setMobileMenuOpen(false)}
+              className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold transition ${
+                pathname.startsWith('/products') ? 'bg-emerald-50 text-emerald-900 font-bold' : 'text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              <span>{t('products')}</span>
+              {lang === 'ar' ? <ChevronLeft className="w-4 h-4 text-gray-400" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
+            </Link>
+
+            {/* Customer Role Links on Mobile */}
+            {user && userRole !== 'vendor' && (
+              <>
+                <Link
+                  href="/profile/orders"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-gray-700 hover:bg-emerald-50 hover:text-emerald-900 transition"
+                >
+                  <ShoppingBag className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>{lang === 'ar' ? 'مشترياتي (طلباتي السابقة)' : 'My Purchases'}</span>
+                </Link>
+
+                <Link
+                  href="/profile/addresses"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-gray-700 hover:bg-emerald-50 hover:text-emerald-900 transition"
+                >
+                  <MapPin className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>{lang === 'ar' ? 'عناويني وموقعي في سوريا' : 'Delivery Addresses'}</span>
+                </Link>
+              </>
+            )}
+
+            {/* Vendor Role Links on Mobile */}
+            {user && userRole === 'vendor' && (
+              <div className="pt-2 space-y-1">
+                <Link
+                  href="/vendor"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center justify-between px-3.5 py-3 rounded-xl text-sm font-bold text-amber-950 bg-amber-50 border border-amber-200 transition"
+                >
+                  <span className="flex items-center gap-2">
+                    <Store className="w-4 h-4 text-amber-600" />
+                    <span>{lang === 'ar' ? 'لوحة البائع' : 'Vendor Dashboard'}</span>
+                  </span>
+                  <span className="text-[10px] bg-amber-600 text-white px-2 py-0.5 rounded-full font-bold">
+                    {lang === 'ar' ? 'المتجر' : 'Store'}
+                  </span>
+                </Link>
+
+                <Link
+                  href="/vendor/settings"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-gray-700 hover:bg-amber-50 hover:text-amber-900 transition"
+                >
+                  <Settings className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>{lang === 'ar' ? 'إعدادات المتجر والموقع' : 'Store Settings & Location'}</span>
+                </Link>
+              </div>
+            )}
+
+            {/* Admin Role Link on Mobile */}
+            {user && userRole === 'admin' && (
+              <Link
+                href="/admin"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-800 bg-slate-100 transition"
               >
-                <LogOut className="w-4 h-4" />
+                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>{t('adminPortal')}</span>
+              </Link>
+            )}
+          </div>
+
+          {/* Mobile Footer Actions */}
+          {user ? (
+            <div className="pt-3 border-t border-gray-100">
+              <button
+                onClick={handleSignOut}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 transition cursor-pointer"
+              >
+                <LogOut className="w-4 h-4 shrink-0" />
                 <span>{t('signOut')}</span>
               </button>
             </div>
           ) : (
-            <div className="pt-2 border-t border-gray-100 flex gap-2">
+            <div className="pt-3 border-t border-gray-100 flex gap-2">
               <Link
                 href="/auth/login"
                 onClick={() => setMobileMenuOpen(false)}
-                className="flex-1 text-center py-2 rounded-lg text-xs font-bold border border-gray-200 text-gray-700"
+                className="flex-1 text-center py-2.5 rounded-xl text-xs font-bold border border-gray-200 text-gray-700 hover:bg-gray-50 transition"
               >
                 {t('signIn')}
               </Link>
               <Link
                 href="/auth/signup"
                 onClick={() => setMobileMenuOpen(false)}
-                className="flex-1 text-center py-2 rounded-lg text-xs font-bold bg-emerald-600 text-white"
+                className="flex-1 text-center py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition"
               >
                 {t('signUp')}
               </Link>

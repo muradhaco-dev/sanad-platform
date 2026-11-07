@@ -8,16 +8,16 @@ export default function Footer() {
   const { t, lang } = useLanguage();
 
   return (
-    <footer className="bg-slate-900 text-slate-300 border-t border-slate-800 mt-24">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-10">
+    <footer className="bg-slate-900 text-slate-300 border-t border-slate-800 mt-16 sm:mt-24 w-full overflow-x-hidden">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 sm:gap-10">
           {/* Brand & Mission */}
-          <div className="md:col-span-2 space-y-4">
+          <div className="sm:col-span-2 space-y-4">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center text-white font-black text-base">
                 S
               </div>
-              <span className="text-xl font-black text-white">{t('storeName')}</span>
+              <span className="text-lg sm:text-xl font-black text-white">{t('storeName')}</span>
             </div>
             <p className="text-xs text-slate-400 leading-relaxed max-w-md">
               {lang === 'ar'
@@ -30,7 +30,7 @@ export default function Footer() {
               <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
               <div>
                 <span className="font-bold text-white">Merchant of Record: </span>
-                <span className="text-slate-400">
+                <span className="text-slate-400 text-[11px] sm:text-xs">
                   {lang === 'ar'
                     ? 'تتم معالجة جميع عمليات الدفع وتأمينها بواسطة Lemon Squeezy، التاجر الرسمي المسجل لضمان الحماية والأمان الضريبي والمصرفي الكامل.'
                     : 'All online orders and card transactions are processed securely by Lemon Squeezy, our authorized Merchant of Record.'}
@@ -41,10 +41,10 @@ export default function Footer() {
 
           {/* Quick Links */}
           <div>
-            <h3 className="text-white text-xs font-bold uppercase tracking-wider mb-4">
+            <h3 className="text-white text-xs font-bold uppercase tracking-wider mb-3 sm:mb-4">
               {lang === 'ar' ? 'روابط المتجر' : 'Quick Links'}
             </h3>
-            <ul className="text-xs space-y-2.5 text-slate-400">
+            <ul className="text-xs space-y-2 sm:space-y-2.5 text-slate-400">
               <li>
                 <Link href="/" className="hover:text-emerald-400 transition-colors">
                   {t('home')}
@@ -68,12 +68,12 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Legal Pages (Required for Lemon Squeezy Approval) */}
+          {/* Legal Pages */}
           <div>
-            <h3 className="text-white text-xs font-bold uppercase tracking-wider mb-4">
+            <h3 className="text-white text-xs font-bold uppercase tracking-wider mb-3 sm:mb-4">
               {t('legalNotice')}
             </h3>
-            <ul className="text-xs space-y-2.5 text-slate-400">
+            <ul className="text-xs space-y-2 sm:space-y-2.5 text-slate-400">
               <li>
                 <Link href="/terms-of-service" className="hover:text-emerald-400 transition-colors">
                   {t('termsTitle')}
@@ -94,21 +94,18 @@ export default function Footer() {
         </div>
 
         {/* Bottom Bar & Payment Icons */}
-        <div className="mt-12 pt-8 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+        <div className="mt-8 sm:mt-12 pt-6 sm:pt-8 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500 text-center sm:text-start">
           <p>© 2026 {t('storeName')}. {t('allRightsReserved')}</p>
 
-          <div className="flex items-center gap-3 text-slate-400">
-            <span className="flex items-center gap-1 font-mono text-[11px] bg-slate-800 px-2.5 py-1 rounded border border-slate-700">
-              <Lock className="w-3 h-3 text-emerald-400" /> 256-Bit SSL
+          <div className="flex items-center gap-3 text-slate-400 flex-wrap justify-center">
+            <span className="flex items-center gap-1">
+              <Lock className="w-3.5 h-3.5 text-emerald-400" />
+              <span>SSL 256-Bit Encrypted</span>
             </span>
-            <span className="text-[11px] bg-slate-800 px-2 py-1 rounded border border-slate-700 font-bold">
-              VISA
-            </span>
-            <span className="text-[11px] bg-slate-800 px-2 py-1 rounded border border-slate-700 font-bold">
-              Mastercard
-            </span>
-            <span className="text-[11px] bg-slate-800 px-2 py-1 rounded border border-slate-700 font-bold">
-              Apple Pay
+            <span>•</span>
+            <span className="flex items-center gap-1">
+              <CreditCard className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Cards & Apple Pay</span>
             </span>
           </div>
         </div>

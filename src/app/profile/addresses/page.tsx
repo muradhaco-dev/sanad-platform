@@ -126,77 +126,54 @@ export default function CustomerAddressesPage() {
       street_address: addr.street_address,
       latitude: addr.latitude || 33.5138,
       longitude: addr.longitude || 36.2765,
-      is_default: addr.is_default,
+      is_default: addr.is_default || false,
     });
     setIsModalOpen(true);
   };
 
   const handleSaveAddress = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentUser) return;
+    if (!currentUser) {
+      alert(lang === 'ar' ? 'يرجى تسجيل الدخول أولاً' : 'Please sign in first');
+      return;
+    }
 
-    if (!formData.title || !formData.recipient_name || !formData.recipient_phone || !formData.street_address) {
-      alert(lang === 'ar' ? 'يرجى إكمال جميع الحقول الإلزامية' : 'Please fill all required fields');
+    if (!formData.recipient_name || !formData.recipient_phone || !formData.street_address) {
+      alert(lang === 'ar' ? 'يرجى إكمال جميع الحقول المطلوبة' : 'Please fill all required fields');
       return;
     }
 
     setActionLoading(true);
     try {
-      if (editingAddressId && !editingAddressId.startsWith('addr-sample')) {
-        // Update in Supabase
+      const payload = {
+        user_id: currentUser.id,
+        title: formData.title.trim(),
+        recipient_name: formData.recipient_name.trim(),
+        recipient_phone: formData.recipient_phone.trim(),
+        city: formData.city.trim(),
+        street_address: formData.street_address.trim(),
+        latitude: formData.latitude,
+        longitude: formData.longitude,
+        is_default: formData.is_default,
+      };
+
+      if (editingAddressId) {
         const { error } = await supabase
           .from('delivery_addresses')
-          .update({
-            title: formData.title,
-            recipient_name: formData.recipient_name,
-            recipient_phone: formData.recipient_phone,
-            city: formData.city,
-            street_address: formData.street_address,
-            latitude: formData.latitude,
-            longitude: formData.longitude,
-            is_default: formData.is_default,
-          })
+          .update(payload)
           .eq('id', editingAddressId);
 
-        if (!error) {
-          showToast(lang === 'ar' ? 'تم تحديث العنوان بنجاح!' : 'Address updated successfully!');
-        }
+        if (error) throw error;
+        showToast(lang === 'ar' ? 'تم تحديث العنوان بنجاح!' : 'Address updated successfully!');
       } else {
-        // Insert into Supabase
-        const { data, error } = await supabase
-          .from('delivery_addresses')
-          .insert({
-            user_id: currentUser.id,
-            title: formData.title,
-            recipient_name: formData.recipient_name,
-            recipient_phone: formData.recipient_phone,
-            city: formData.city,
-            street_address: formData.street_address,
-            latitude: formData.latitude,
-            longitude: formData.longitude,
-            is_default: formData.is_default,
-          })
-          .select()
-          .single();
-
-        if (!error && data) {
-          showToast(lang === 'ar' ? 'تم حفظ عنوان التسليم الجديد بنجاح!' : 'Delivery address saved!');
-        } else {
-          // Local update if offline/mock
-          const newAddr: DeliveryAddress = {
-            id: `addr-${Date.now().toString().slice(-5)}`,
-            user_id: currentUser.id,
-            ...formData,
-            created_at: new Date().toISOString(),
-          };
-          setAddresses([newAddr, ...addresses]);
-          showToast(lang === 'ar' ? 'تم حفظ العنوان محلياً بنجاح!' : 'Address saved!');
-        }
+        const { error } = await supabase.from('delivery_addresses').insert(payload);
+        if (error) throw error;
+        showToast(lang === 'ar' ? 'تمت إضافة العنوان الجديد بنجاح!' : 'New address added successfully!');
       }
 
       setIsModalOpen(false);
       fetchAddresses(currentUser.id);
-    } catch (err) {
+    } catch (err: any) {
       alert('Error saving address');
     } finally {
       setActionLoading(false);
@@ -215,24 +192,24 @@ export default function CustomerAddressesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50/70 py-10 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-slate-50/70 py-6 sm:py-10 px-3 sm:px-6 lg:px-8 w-full overflow-x-hidden">
       {/* Toast Alert */}
       {toastMessage && (
-        <div className="sticky top-16 z-50 bg-emerald-700 text-white py-3 px-4 shadow-lg text-center text-xs font-bold flex items-center justify-center gap-2 animate-in slide-in-from-top">
-          <CheckCircle2 className="w-4 h-4 text-emerald-300" />
+        <div className="sticky top-16 z-50 bg-emerald-700 text-white py-2.5 px-4 shadow-lg text-center text-xs font-bold flex items-center justify-center gap-2 animate-in slide-in-from-top">
+          <CheckCircle2 className="w-4 h-4 text-emerald-300 shrink-0" />
           <span>{toastMessage}</span>
         </div>
       )}
 
-      <div className="max-w-5xl mx-auto space-y-6">
+      <div className="max-w-5xl mx-auto space-y-4 sm:space-y-6">
         {/* Header Breadcrumb */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-gray-200/90 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-gray-200/90 shadow-xs">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-black">
-              <MapPin className="w-6 h-6" />
+            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-black shrink-0">
+              <MapPin className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
             <div>
-              <h1 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">
+              <h1 className="text-lg sm:text-2xl font-black text-gray-900 tracking-tight">
                 {lang === 'ar' ? 'عناويني ومواقع التسليم في سوريا' : 'Delivery Addresses & Locations'}
               </h1>
               <p className="text-xs text-gray-500 mt-0.5">
@@ -245,9 +222,9 @@ export default function CustomerAddressesPage() {
 
           <button
             onClick={handleOpenAddModal}
-            className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-xs cursor-pointer"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-xs cursor-pointer"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-4 h-4 shrink-0" />
             <span>{lang === 'ar' ? 'إضافة عنوان جديد' : 'Add New Address'}</span>
           </button>
         </div>
@@ -261,7 +238,7 @@ export default function CustomerAddressesPage() {
             </p>
           </div>
         ) : addresses.length === 0 ? (
-          <div className="bg-white rounded-3xl border border-dashed border-gray-300 p-12 text-center space-y-4">
+          <div className="bg-white rounded-2xl sm:rounded-3xl border border-dashed border-gray-300 p-8 sm:p-12 text-center space-y-4">
             <MapPin className="w-12 h-12 text-gray-300 mx-auto" />
             <h3 className="text-base font-bold text-gray-800">
               {lang === 'ar' ? 'لم تقم بحفظ أي عنوان تسليم بعد' : 'No addresses saved yet'}
@@ -280,24 +257,24 @@ export default function CustomerAddressesPage() {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
             {addresses.map((addr) => (
               <div
                 key={addr.id}
-                className={`bg-white rounded-3xl border p-6 shadow-xs flex flex-col justify-between space-y-4 transition ${
+                className={`bg-white rounded-2xl sm:rounded-3xl border p-4 sm:p-6 shadow-xs flex flex-col justify-between space-y-4 transition ${
                   addr.is_default ? 'border-emerald-500/80 ring-1.5 ring-emerald-500/20' : 'border-gray-200'
                 }`}
               >
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                      <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
                         <Home className="w-4 h-4" />
                       </div>
-                      <span className="font-bold text-gray-900 text-sm">{addr.title}</span>
+                      <span className="font-bold text-gray-900 text-sm truncate">{addr.title}</span>
                     </div>
                     {addr.is_default && (
-                      <span className="text-[10px] font-black bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
+                      <span className="text-[10px] font-black bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full shrink-0">
                         {lang === 'ar' ? 'العنوان الافتراضي' : 'Default'}
                       </span>
                     )}
@@ -305,11 +282,11 @@ export default function CustomerAddressesPage() {
 
                   <div className="space-y-1.5 text-xs text-gray-600 pt-1 border-t border-gray-100">
                     <p className="flex items-center gap-2 font-medium text-gray-900">
-                      <User className="w-3.5 h-3.5 text-gray-400" />
-                      <span>{addr.recipient_name}</span>
+                      <User className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                      <span className="truncate">{addr.recipient_name}</span>
                     </p>
                     <p className="flex items-center gap-2 text-gray-700 font-mono">
-                      <Phone className="w-3.5 h-3.5 text-emerald-600" />
+                      <Phone className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                       <span dir="ltr">{addr.recipient_phone}</span>
                     </p>
                     <p className="flex items-start gap-2 text-gray-600">
@@ -320,7 +297,7 @@ export default function CustomerAddressesPage() {
                     </p>
                     {addr.latitude && (
                       <p className="text-[10px] text-gray-400 font-mono bg-slate-50 px-2 py-1 rounded-md w-fit flex items-center gap-1">
-                        <Compass className="w-3 h-3 text-emerald-600" />
+                        <Compass className="w-3 h-3 text-emerald-600 shrink-0" />
                         <span>
                           GPS: {addr.latitude.toFixed(4)}, {addr.longitude?.toFixed(4)}
                         </span>
@@ -332,17 +309,17 @@ export default function CustomerAddressesPage() {
                 <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
                   <button
                     onClick={() => handleOpenEditModal(addr)}
-                    className="p-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition cursor-pointer"
+                    className="p-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition cursor-pointer"
                     title="تعديل"
                   >
-                    <Edit3 className="w-3.5 h-3.5" />
+                    <Edit3 className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => handleDeleteAddress(addr.id)}
-                    className="p-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                    className="p-2 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 transition cursor-pointer"
                     title="حذف"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
               </div>
@@ -353,11 +330,11 @@ export default function CustomerAddressesPage() {
 
       {/* ================= MODAL: ADD / EDIT ADDRESS ================= */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl max-w-xl w-full p-6 shadow-2xl space-y-4 my-8 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-xl w-full p-4 sm:p-6 shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-              <h3 className="text-base font-black text-gray-900 flex items-center gap-2">
-                <MapPin className="w-5 h-5 text-emerald-600" />
+              <h3 className="text-sm sm:text-base font-black text-gray-900 flex items-center gap-2">
+                <MapPin className="w-5 h-5 text-emerald-600 shrink-0" />
                 <span>
                   {editingAddressId
                     ? lang === 'ar' ? 'تعديل عنوان التسليم' : 'Edit Delivery Address'
@@ -366,13 +343,13 @@ export default function CustomerAddressesPage() {
               </h3>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="p-1 rounded-lg text-gray-400 hover:text-gray-600 cursor-pointer"
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveAddress} className="space-y-4">
+            <form onSubmit={handleSaveAddress} className="space-y-3 sm:space-y-4">
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1">
                   {lang === 'ar' ? 'تسمية العنوان *' : 'Address Label *'}
@@ -383,11 +360,11 @@ export default function CustomerAddressesPage() {
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   placeholder="مثال: بيت الأهل دمشق، منزل العائلة حلب"
-                  className="w-full text-xs px-3 py-2 rounded-xl border border-gray-300 focus:ring-1 focus:ring-emerald-500 font-semibold"
+                  className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-gray-300 focus:ring-1 focus:ring-emerald-500 font-semibold"
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
                   <label className="block text-xs font-bold text-gray-700 mb-1">
                     {lang === 'ar' ? 'اسم المستلم الثلاثي *' : 'Recipient Full Name *'}
@@ -398,7 +375,7 @@ export default function CustomerAddressesPage() {
                     value={formData.recipient_name}
                     onChange={(e) => setFormData({ ...formData, recipient_name: e.target.value })}
                     placeholder="أم عمار المحمد"
-                    className="w-full text-xs px-3 py-2 rounded-xl border border-gray-300 focus:ring-1 focus:ring-emerald-500"
+                    className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-gray-300 focus:ring-1 focus:ring-emerald-500"
                   />
                 </div>
 
@@ -412,7 +389,7 @@ export default function CustomerAddressesPage() {
                     value={formData.recipient_phone}
                     onChange={(e) => setFormData({ ...formData, recipient_phone: e.target.value })}
                     placeholder="+963 944 123 456"
-                    className="w-full text-xs px-3 py-2 rounded-xl border border-gray-300 focus:ring-1 focus:ring-emerald-500 font-mono"
+                    className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-gray-300 focus:ring-1 focus:ring-emerald-500 font-mono"
                   />
                 </div>
               </div>
@@ -425,7 +402,7 @@ export default function CustomerAddressesPage() {
                   <select
                     value={formData.city}
                     onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                    className="w-full text-xs px-3 py-2 rounded-xl border border-gray-300 bg-white font-bold"
+                    className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-gray-300 bg-white font-bold"
                   >
                     <option value="دمشق">دمشق (Damascus)</option>
                     <option value="ريف دمشق">ريف دمشق</option>
@@ -449,12 +426,12 @@ export default function CustomerAddressesPage() {
                     value={formData.street_address}
                     onChange={(e) => setFormData({ ...formData, street_address: e.target.value })}
                     placeholder="مثال: المزة فيلات غربية - بناء النرجس طابق 3"
-                    className="w-full text-xs px-3 py-2 rounded-xl border border-gray-300 focus:ring-1 focus:ring-emerald-500"
+                    className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-gray-300 focus:ring-1 focus:ring-emerald-500"
                   />
                 </div>
               </div>
 
-              {/* Interactive Location Picker for exact Syrian delivery coordinates */}
+              {/* Interactive Location Picker */}
               <VendorLocationPicker
                 latitude={formData.latitude}
                 longitude={formData.longitude}
@@ -464,18 +441,18 @@ export default function CustomerAddressesPage() {
                 }
               />
 
-              <div className="pt-2 flex justify-end gap-2 border-t border-gray-100">
+              <div className="pt-2 flex flex-col-reverse sm:flex-row justify-end gap-2 border-t border-gray-100">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 rounded-xl border border-gray-200 text-gray-700 text-xs font-bold hover:bg-gray-50 cursor-pointer"
+                  className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-gray-200 text-gray-700 text-xs font-bold hover:bg-gray-50 cursor-pointer text-center"
                 >
                   {lang === 'ar' ? 'إلغاء' : 'Cancel'}
                 </button>
                 <button
                   type="submit"
                   disabled={actionLoading}
-                  className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md cursor-pointer disabled:opacity-60"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md cursor-pointer disabled:opacity-60"
                 >
                   {actionLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   <span>{editingAddressId ? (lang === 'ar' ? 'حفظ التعديل' : 'Save') : (lang === 'ar' ? 'تأكيد وحفظ العنوان' : 'Save Address')}</span>

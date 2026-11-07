@@ -128,12 +128,12 @@ export default function VendorSettingsPage() {
   // Guard: Vendors only
   if (authChecked && userRole !== 'vendor' && userRole !== 'admin') {
     return (
-      <div className="min-h-[75vh] flex items-center justify-center px-4 py-16 bg-slate-50">
-        <div className="max-w-md w-full bg-white rounded-3xl p-8 border border-gray-200 text-center shadow-lg space-y-4">
-          <div className="w-16 h-16 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center mx-auto">
-            <Store className="w-8 h-8" />
+      <div className="min-h-[75vh] flex items-center justify-center px-4 py-12 bg-slate-50 w-full">
+        <div className="max-w-md w-full bg-white rounded-2xl sm:rounded-3xl p-6 sm:p-8 border border-gray-200 text-center shadow-lg space-y-4">
+          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center mx-auto">
+            <Store className="w-7 h-7 sm:w-8 sm:h-8" />
           </div>
-          <h2 className="text-xl font-black text-gray-900">
+          <h2 className="text-lg sm:text-xl font-black text-gray-900">
             {lang === 'ar' ? 'بوابة التجار والمزودين فقط' : 'Authorized Vendors Only'}
           </h2>
           <p className="text-xs text-gray-500 leading-relaxed">
@@ -155,28 +155,28 @@ export default function VendorSettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50/70 py-10 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-slate-50/70 py-6 sm:py-10 px-3 sm:px-6 lg:px-8 w-full overflow-x-hidden">
       {/* Toast Alert */}
       {toastMessage && (
-        <div className="sticky top-16 z-50 bg-emerald-700 text-white py-3 px-4 shadow-lg text-center text-xs font-bold flex items-center justify-center gap-2 animate-in slide-in-from-top">
-          <CheckCircle2 className="w-4 h-4 text-emerald-300" />
+        <div className="sticky top-16 z-50 bg-emerald-700 text-white py-2.5 px-4 shadow-lg text-center text-xs font-bold flex items-center justify-center gap-2 animate-in slide-in-from-top">
+          <CheckCircle2 className="w-4 h-4 text-emerald-300 shrink-0" />
           <span>{toastMessage}</span>
         </div>
       )}
 
-      <div className="max-w-4xl mx-auto space-y-8">
+      <div className="max-w-4xl mx-auto space-y-6 sm:space-y-8">
         {/* Top Header Card */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-gray-200/90 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-gray-200/90 shadow-xs">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center font-black">
-              <Store className="w-6 h-6" />
+            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center font-black shrink-0">
+              <Store className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-lg sm:text-2xl font-black text-gray-900 tracking-tight">
                   {lang === 'ar' ? 'إعدادات المتجر والموقع الجغرافي' : 'Store Settings & Physical Location'}
                 </h1>
-                <span className="bg-amber-100 text-amber-900 text-[10px] font-black px-2 py-0.5 rounded-full uppercase">
+                <span className="bg-amber-100 text-amber-900 text-[10px] font-black px-2 py-0.5 rounded-full uppercase shrink-0">
                   {lang === 'ar' ? 'بوابة البائع' : 'Vendor Portal'}
                 </span>
               </div>
@@ -190,7 +190,7 @@ export default function VendorSettingsPage() {
 
           <Link
             href="/vendor"
-            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-xs transition"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-xs transition"
           >
             <span>{lang === 'ar' ? 'الذهاب للوحة البائع' : 'Vendor Dashboard'}</span>
             <ArrowRight className="w-4 h-4" />
@@ -205,18 +205,18 @@ export default function VendorSettingsPage() {
             </p>
           </div>
         ) : (
-          <form onSubmit={handleSaveSettings} className="space-y-6">
+          <form onSubmit={handleSaveSettings} className="space-y-4 sm:space-y-6">
             {/* 1. Store Identity & Logo Card */}
-            <div className="bg-white rounded-3xl border border-gray-200/90 p-6 shadow-xs space-y-5">
+            <div className="bg-white rounded-2xl sm:rounded-3xl border border-gray-200/90 p-4 sm:p-6 shadow-xs space-y-4 sm:space-y-5">
               <h2 className="text-sm font-black text-gray-900 flex items-center gap-2 border-b border-gray-100 pb-3">
-                <Building2 className="w-4 h-4 text-amber-600" />
+                <Building2 className="w-4 h-4 text-amber-600 shrink-0" />
                 <span>{lang === 'ar' ? '1. الهوية التجارية والشعار' : '1. Store Identity & Branding'}</span>
               </h2>
 
-              <div className="flex flex-col sm:flex-row items-center gap-5">
+              <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-5">
                 {/* Logo Preview */}
                 <div className="relative group shrink-0">
-                  <div className="w-20 h-20 rounded-2xl overflow-hidden border-2 border-amber-500/50 bg-gray-100 shadow-md">
+                  <div className="w-18 h-18 sm:w-20 sm:h-20 rounded-2xl overflow-hidden border-2 border-amber-500/50 bg-gray-100 shadow-md">
                     <img
                       src={logoUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=300&q=80'}
                       alt={storeName}
@@ -258,7 +258,7 @@ export default function VendorSettingsPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 pt-2">
                 <div>
                   <label className="block text-xs font-bold text-gray-700 mb-1">
                     {lang === 'ar' ? 'رقم موبايل المتجر / الواتساب *' : 'Contact Phone / WhatsApp *'}
@@ -299,9 +299,9 @@ export default function VendorSettingsPage() {
             </div>
 
             {/* 2. Physical Location & Map Pinpoint Card */}
-            <div className="bg-white rounded-3xl border border-gray-200/90 p-6 shadow-xs space-y-4">
+            <div className="bg-white rounded-2xl sm:rounded-3xl border border-gray-200/90 p-4 sm:p-6 shadow-xs space-y-3 sm:space-y-4">
               <h2 className="text-sm font-black text-gray-900 flex items-center gap-2 border-b border-gray-100 pb-3">
-                <MapPin className="w-4 h-4 text-emerald-600" />
+                <MapPin className="w-4 h-4 text-emerald-600 shrink-0" />
                 <span>{lang === 'ar' ? '2. تحديد موقع المستودع الفعلي في سوريا' : '2. Physical Dispatch Location & Map'}</span>
               </h2>
 
@@ -328,7 +328,7 @@ export default function VendorSettingsPage() {
               <button
                 type="submit"
                 disabled={saving}
-                className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white font-bold text-xs shadow-md hover:shadow-lg transition cursor-pointer disabled:opacity-60"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl sm:rounded-2xl bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white font-bold text-xs shadow-md hover:shadow-lg transition cursor-pointer disabled:opacity-60"
               >
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 <span>{lang === 'ar' ? 'حفظ إعدادات المتجر والموقع' : 'Save Store Profile & Location'}</span>
