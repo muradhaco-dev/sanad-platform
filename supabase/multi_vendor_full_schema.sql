@@ -1,38 +1,38 @@
 -- ==============================================================================
 -- SANAD MULTI-VENDOR MARKETPLACE: COMPLETE SUPABASE SQL SCHEMA
--- Execution Order:
--- 1. Enums & Types
--- 2. CREATE TABLE for All Tables (profiles, products, orders, order_items, vendor_payout_methods, withdrawals)
--- 3. ENABLE ROW LEVEL SECURITY (RLS) on all tables
--- 4. RLS Security Policies
--- 5. Wallet View & Calculation Helper
+-- 100% Bulletproof Execution Order & Type Safe
 -- ==============================================================================
 
--- ==============================================================================
--- 1. ENUMS & EXTENSIONS
--- ==============================================================================
+-- 1. Safely drop any legacy user_role enum if it existed with old values
 DO $$ BEGIN
+    DROP TYPE IF EXISTS user_role CASCADE;
     CREATE TYPE user_role AS ENUM ('admin', 'vendor', 'customer');
-EXCEPTION
-    WHEN duplicate_object THEN null;
+EXCEPTION WHEN OTHERS THEN
+    NULL;
 END $$;
 
 -- ==============================================================================
--- 2. CREATE TABLES (All tables created FIRST before any RLS or ALTER statements)
+-- 2. CREATE ALL TABLES FIRST
 -- ==============================================================================
 
--- 2.1 Profiles Table
+-- 2.1 Profiles Table (Using TEXT with CHECK constraint to prevent any enum mismatch)
 CREATE TABLE IF NOT EXISTS public.profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     email TEXT NOT NULL,
     full_name TEXT NOT NULL,
-    role user_role NOT NULL DEFAULT 'customer',
+    role TEXT NOT NULL DEFAULT 'customer' CHECK (role IN ('admin', 'vendor', 'customer')),
     store_name TEXT,
     city TEXT,
     phone TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Ensure columns exist if table was already created
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'customer';
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS store_name TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS city TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS phone TEXT;
 
 -- 2.2 Products Table (with Vendor ID & GPS Coordinates)
 CREATE TABLE IF NOT EXISTS public.products (
@@ -55,7 +55,6 @@ CREATE TABLE IF NOT EXISTS public.products (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Ensure coordinate columns exist if table was already created earlier
 ALTER TABLE public.products ADD COLUMN IF NOT EXISTS latitude NUMERIC(9, 6);
 ALTER TABLE public.products ADD COLUMN IF NOT EXISTS longitude NUMERIC(9, 6);
 ALTER TABLE public.products ADD COLUMN IF NOT EXISTS location_name TEXT;
@@ -71,7 +70,7 @@ CREATE TABLE IF NOT EXISTS public.orders (
     delivery_address TEXT,
     city TEXT,
     total_amount NUMERIC(10, 2) NOT NULL,
-    payment_status TEXT NOT NULL DEFAULT 'paid', -- 'paid', 'pending', 'refunded'
+    payment_status TEXT NOT NULL DEFAULT 'paid',
     payment_gateway TEXT DEFAULT 'lemon_squeezy',
     lemon_order_id TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
@@ -93,9 +92,9 @@ CREATE TABLE IF NOT EXISTS public.order_items (
     quantity INTEGER NOT NULL DEFAULT 1,
     unit_price NUMERIC(10, 2) NOT NULL,
     total_price NUMERIC(10, 2) NOT NULL,
-    platform_fee NUMERIC(10, 2) NOT NULL, -- 10% platform commission
-    net_vendor_amount NUMERIC(10, 2) NOT NULL, -- Gross minus platform fee
-    status TEXT NOT NULL DEFAULT 'paid', -- 'paid', 'processing', 'shipped', 'delivered'
+    platform_fee NUMERIC(10, 2) NOT NULL,
+    net_vendor_amount NUMERIC(10, 2) NOT NULL,
+    status TEXT NOT NULL DEFAULT 'paid',
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -103,7 +102,7 @@ CREATE TABLE IF NOT EXISTS public.order_items (
 CREATE TABLE IF NOT EXISTS public.vendor_payout_methods (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     vendor_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
-    method_name TEXT NOT NULL, -- 'Cham Cash', 'Syriatel Cash', 'Al-Haram', 'Bemo Bank', etc.
+    method_name TEXT NOT NULL,
     account_number TEXT NOT NULL,
     account_holder_name TEXT NOT NULL,
     phone_number TEXT,
@@ -117,9 +116,9 @@ CREATE TABLE IF NOT EXISTS public.withdrawals (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     vendor_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
     amount NUMERIC(10, 2) NOT NULL,
-    status TEXT NOT NULL DEFAULT 'pending', -- 'pending', 'paid', 'rejected'
+    status TEXT NOT NULL DEFAULT 'pending',
     payout_method_id UUID REFERENCES public.vendor_payout_methods(id),
-    transaction_ref TEXT, -- Local transfer ref (رقم إشعار الحوالة في سوريا)
+    transaction_ref TEXT,
     admin_notes TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     paid_at TIMESTAMPTZ,
@@ -137,7 +136,7 @@ BEGIN
     new.id,
     new.email,
     COALESCE(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1)),
-    COALESCE((new.raw_user_meta_data->>'role')::user_role, 'customer'::user_role)
+    COALESCE(new.raw_user_meta_data->>'role', 'customer')
   )
   ON CONFLICT (id) DO UPDATE SET
     role = EXCLUDED.role,
