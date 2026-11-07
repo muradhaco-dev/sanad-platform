@@ -11,8 +11,8 @@ export const STORE_PRODUCTS: Product[] = [
     location_name: 'دمشق، كفرسوسة والبرامكة',
     title_en: 'Comprehensive Family Nutrition Box',
     title_ar: 'السلة الغذائية العائلية الشاملة',
-    description_en: 'A complete monthly one-time provision package packed with top-tier grains, pure cooking oils, legumes, and pantry staples. Perfect for supporting a family of 5.',
-    description_ar: 'حزمة تموينية شهرية شاملة لشراء لمرة واحدة، تضم أجود أصناف الحبوب، الزيوت النقية، البقوليات والمعلبات الأساسية تكفي عائلة من 5 أفراد.',
+    description_en: 'A complete monthly provision package packed with top-tier grains, pure cooking oils, legumes, and pantry staples. Perfect for supporting a family of 5 in Syria.',
+    description_ar: 'حزمة تموينية شهرية شاملة لشراء لمرة واحدة، تضم أجود أصناف الحبوب، الزيوت النقية، البقوليات والمعلبات الأساسية تكفي عائلة من 5 أفراد في سوريا.',
     price_usd: 55,
     category: 'food',
     badge_en: 'Best Seller',
@@ -40,17 +40,16 @@ export const STORE_PRODUCTS: Product[] = [
       'Weight': 'Approx. 28 kg',
       'Fulfillment': 'Field delivery within 24-48 hours',
       'Package Type': 'Reinforced heavy-duty carton box',
-      'Purchase Type': 'One-time direct purchase'
+      'Payment Rail': 'Syrian Direct Local Transfer (Al-Haram, Al-Fouad, Syriatel Cash, Cham Cash)'
     },
     specs_ar: {
       'الوزن الإجمالي': 'حوالي 28 كغ',
       'مدة التوصيل': 'تسليم ميداني خلال 24 - 48 ساعة',
       'نوع التغليف': 'صندوق كرتوني مقوى ومحكم الإغلاق',
-      'نوع الشراء': 'شراء فردي مباشر لمرة واحدة'
+      'وسيلة الدفع': 'حوالة سورية محلية مباشرة (الهرم، الفؤاد، سيريتل كاش، شام كاش)'
     },
     is_featured: true,
     stock_status: 'in_stock',
-    lemon_variant_id: 'default'
   },
   {
     id: 'prod-chronic-care-medical-kit',
@@ -62,8 +61,8 @@ export const STORE_PRODUCTS: Product[] = [
     location_name: 'حلب، الفرقان والجميلية',
     title_en: 'Chronic Care & Senior Medical Kit',
     title_ar: 'باقة الرعاية الصحية وأدوية كبار السن',
-    description_en: 'A one-time medical supply package designed to procure essential hypertension, diabetes, and cardiovascular medications with verified pharmacy receipts.',
-    description_ar: 'باقة طبية لمرة واحدة مخصصة لتأمين أدوية الضغط والسكري وأمراض القلب من صيدليات معتمدة مع فواتير الشراء الرسمية.',
+    description_en: 'A humanitarian medical supply package designed to procure essential hypertension, diabetes, and cardiovascular medications with verified pharmacy receipts.',
+    description_ar: 'باقة طبية إنسانية مخصصة لتأمين أدوية الضغط والسكري وأمراض القلب من صيدليات معتمدة مع فواتير الشراء الرسمية.',
     price_usd: 42,
     category: 'health',
     badge_en: 'Urgent Essential',
@@ -85,17 +84,16 @@ export const STORE_PRODUCTS: Product[] = [
       'Category': 'Health & Care',
       'Verification': 'Licensed Pharmacy Receipt Included',
       'Delivery Time': 'Urgent 24-hour priority dispatch',
-      'Payment Mode': 'One-time payment'
+      'Payment Rail': 'Syrian Direct Local Transfer'
     },
     specs_ar: {
       'التصنيف': 'رعاية صحية وأدوية',
       'التوثيق': 'فاتورة رسمية صادرة من صيدلية مرخصة',
       'سرعة التوصيل': 'أولوية قصوى خلال 24 ساعة',
-      'طريقة الدفع': 'دفعة واحدة'
+      'وسيلة الدفع': 'حوالة سورية محلية مباشرة'
     },
     is_featured: true,
     stock_status: 'in_stock',
-    lemon_variant_id: 'default'
   },
   {
     id: 'prod-portable-solar-emergency-station',
@@ -132,17 +130,16 @@ export const STORE_PRODUCTS: Product[] = [
       'Capacity': '150Wh Standalone Backup',
       'Run Time': 'Up to 14 hours of continuous lighting',
       'Warranty': '1 Year Manufacturer Guarantee',
-      'Pricing': 'One-time cost ($89)'
+      'Payment Rail': 'Syrian Direct Local Transfer'
     },
     specs_ar: {
       'سعة التخزين': '150Wh طاقة احتياطية مستقلة',
       'زمن التشغيل': 'حتى 14 ساعة إنارة متواصلة',
       'الضمان': 'ضمان سنة كاملة ضد عيوب المصنع',
-      'نوع التكلفة': 'تكلفة تدفع لمرة واحدة ($89)'
+      'وسيلة الدفع': 'حوالة سورية محلية مباشرة'
     },
     is_featured: true,
     stock_status: 'in_stock',
-    lemon_variant_id: 'default'
   },
   {
     id: 'prod-winter-warmth-blanket-bundle',
@@ -177,17 +174,16 @@ export const STORE_PRODUCTS: Product[] = [
       'Materials': 'Hypoallergenic Ultra-Dense Microfiber',
       'Season': 'Winter Seasonal Supply',
       'Fulfillment': '48-hour residential delivery',
-      'Type': 'Direct one-off purchase'
+      'Payment Rail': 'Syrian Direct Local Transfer'
     },
     specs_ar: {
       'الخامات': 'مايكروفايبر عالي الكثافة مضاد للحساسية',
       'الموسم': 'مستلزمات شتوية موسمية',
       'مدة التوصيل': 'خلال 48 ساعة لباب المنزل',
-      'طبيعة الشراء': 'شراء لمرة واحدة فقط'
+      'وسيلة الدفع': 'حوالة سورية محلية مباشرة'
     },
     is_featured: false,
     stock_status: 'in_stock',
-    lemon_variant_id: 'default'
   }
 ];
 

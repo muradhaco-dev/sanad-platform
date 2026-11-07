@@ -36,15 +36,17 @@ export default function Footer() {
                 : 'A dedicated one-time purchase e-commerce platform delivering essential family goods and relief provisions. We strictly operate on a one-off payment model with zero recurring subscriptions.'}
             </p>
 
-            {/* Merchant of Record Notice */}
+            {/* Syrian Local Remittance Notice */}
             <div className="p-3 bg-slate-800/80 rounded-xl border border-slate-700/60 text-xs text-slate-300 flex items-start gap-2.5">
               <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
               <div>
-                <span className="font-bold text-white">Merchant of Record: </span>
+                <span className="font-bold text-white">
+                  {lang === 'ar' ? 'شبكة التحويل المحلي المباشر: ' : 'Local Syrian Transfer Rail: '}
+                </span>
                 <span className="text-slate-400 text-[11px] sm:text-xs">
                   {lang === 'ar'
-                    ? 'تتم معالجة جميع عمليات الدفع وتأمينها بواسطة Lemon Squeezy، التاجر الرسمي المسجل لضمان الحماية والأمان الضريبي والمصرفي الكامل.'
-                    : 'All online orders and card transactions are processed securely by Lemon Squeezy, our authorized Merchant of Record.'}
+                    ? 'دعم مباشر بين المغتربين والداخل السوري عبر الهرم، الفؤاد، سيريتل كاش، وشام كاش بدون وسطاء دوليين أو بطاقات بنكية معقدة.'
+                    : 'Direct humanitarian remittances between expats and Syrian merchants via Al-Haram, Al-Fouad, Syriatel Cash, and Cham Cash.'}
                 </span>
               </div>
             </div>

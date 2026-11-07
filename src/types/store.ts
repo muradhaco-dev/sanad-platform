@@ -1,5 +1,19 @@
 export type UserRole = 'admin' | 'vendor' | 'customer';
 
+export type LocalTransferMethod = 'al_haram' | 'al_fouad' | 'syriatel_cash' | 'cham_cash';
+
+export interface SellerTransferDetail {
+  method: LocalTransferMethod;
+  methodNameAr: string;
+  methodNameEn: string;
+  fullName: string;
+  phoneNumber: string;
+  city: string;
+  branchOrAccount: string;
+  instructionsAr: string;
+  instructionsEn: string;
+}
+
 export interface UserProfile {
   id: string;
   email: string;
@@ -52,7 +66,6 @@ export interface Product {
   specs_ar: Record<string, string>;
   is_featured: boolean;
   stock_status: 'in_stock' | 'low_stock';
-  lemon_variant_id?: string;
   created_at?: string;
 }
 
@@ -64,25 +77,22 @@ export interface StoreOrder {
   product_title_en: string;
   product_title_ar: string;
   amount_usd: number;
-  status: 'completed' | 'processing' | 'shipped';
+  payment_method: LocalTransferMethod | string;
+  receipt_number: string;
+  receipt_image_url?: string;
+  sender_name?: string;
+  recipient_name: string;
+  recipient_phone: string;
+  delivery_city: string;
+  delivery_address: string;
+  status: 'pending_verification' | 'completed' | 'processing' | 'shipped';
   created_at: string;
-  receipt_url?: string;
-  lemon_order_id?: string;
-}
-
-export interface SavedPaymentCard {
-  id: string;
-  brand: 'visa' | 'mastercard' | 'amex';
-  last4: string;
-  exp_month: number;
-  exp_year: number;
-  is_default: boolean;
 }
 
 export interface VendorPayoutMethod {
   id: string;
   vendor_id: string;
-  method_name: string; // 'Cham Cash' | 'Syriatel Cash' | 'Al-Haram' | 'Bank of Syria and Overseas' | string
+  method_name: string; // 'Cham Cash' | 'Syriatel Cash' | 'Al-Haram' | 'Al-Fouad' | string
   account_number: string;
   account_holder_name: string;
   phone_number?: string;
@@ -117,14 +127,19 @@ export interface VendorOrderItem {
   customer_name: string;
   customer_email: string;
   customer_phone?: string;
+  recipient_name?: string;
+  recipient_phone?: string;
   delivery_address?: string;
   city?: string;
   quantity: number;
   unit_price: number;
   total_price: number;
-  platform_fee: number; // 10%
+  platform_fee: number; // 0% or low humanitarian fee
   net_vendor_amount: number;
-  status: 'paid' | 'processing' | 'shipped' | 'delivered';
+  payment_method?: LocalTransferMethod | string;
+  receipt_number?: string;
+  receipt_image_url?: string;
+  status: 'pending_verification' | 'completed' | 'paid' | 'processing' | 'shipped' | 'delivered';
   created_at: string;
 }
 
@@ -135,7 +150,7 @@ export interface VendorLedgerEntry {
   order_id: string;
   product_title: string;
   gross_amount: number;
-  platform_fee: number; // e.g. 10% platform commission
+  platform_fee: number;
   net_vendor_amount: number;
   status: 'pending' | 'settled';
   settled_at?: string;

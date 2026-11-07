@@ -5,6 +5,8 @@ import {
   VendorPayoutMethod,
   WithdrawalRequest,
   VendorOrderItem,
+  LocalTransferMethod,
+  SellerTransferDetail,
 } from '@/types/store';
 import { STORE_PRODUCTS } from './products';
 
@@ -69,67 +71,81 @@ let vendorPayoutMethods: VendorPayoutMethod[] = [
   },
 ];
 
-// Initial mock vendor order items (incoming customer orders)
+// Initial mock vendor order items (incoming customer orders with Syrian local transfers)
 let vendorOrderItems: VendorOrderItem[] = [
   {
     id: 'item-201',
     order_id: 'ord-101',
     order_number: 'SND-98214-DM',
-    product_id: 'prod-food-01',
+    product_id: 'prod-family-nutrition-box',
     product_title: 'السلة الغذائية العائلية الشاملة',
     vendor_id: 'vendor-damascus-01',
-    customer_name: 'أم عمار المحمد',
-    customer_email: 'um.ammar@gmail.com',
-    customer_phone: '+963 944 123 456',
+    customer_name: 'طارق الأيوبي (مغترب في ألمانيا)',
+    customer_email: 'tareq.ayyoubi@gmail.com',
+    customer_phone: '+49 152 9844 1234',
+    recipient_name: 'أم عمار المحمد (الوالدة)',
+    recipient_phone: '+963 944 123 456',
     delivery_address: 'دمشق، المزة فيلات غربية - بناء النرجس طابق 3',
     city: 'دمشق',
     quantity: 1,
     unit_price: 55.00,
     total_price: 55.00,
-    platform_fee: 5.50, // 10%
-    net_vendor_amount: 49.50,
-    status: 'paid',
-    created_at: '2026-11-06T14:20:00Z',
+    platform_fee: 0,
+    net_vendor_amount: 55.00,
+    payment_method: 'cham_cash',
+    receipt_number: 'CHAM-8841920-DM',
+    receipt_image_url: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=400&q=80',
+    status: 'pending_verification',
+    created_at: '2026-11-07T14:20:00Z',
   },
   {
     id: 'item-202',
     order_id: 'ord-102',
     order_number: 'SND-98305-DM',
-    product_id: 'prod-food-01',
+    product_id: 'prod-family-nutrition-box',
     product_title: 'السلة الغذائية العائلية الشاملة',
     vendor_id: 'vendor-damascus-01',
-    customer_name: 'خالد عبد الباسط',
-    customer_email: 'khaled.baset@outlook.com',
-    customer_phone: '+963 933 887 711',
+    customer_name: 'سمير الخالد (مغترب في الإمارات)',
+    customer_email: 'samir.khaled@outlook.com',
+    customer_phone: '+971 50 887 7112',
+    recipient_name: 'خالد عبد الباسط',
+    recipient_phone: '+963 933 887 711',
     delivery_address: 'دمشق، كفرسوسة - جانب جامع الهدى',
     city: 'دمشق',
     quantity: 2,
     unit_price: 55.00,
     total_price: 110.00,
-    platform_fee: 11.00,
-    net_vendor_amount: 99.00,
-    status: 'processing',
-    created_at: '2026-11-06T18:45:00Z',
+    platform_fee: 0,
+    net_vendor_amount: 110.00,
+    payment_method: 'al_haram',
+    receipt_number: 'HRM-592810-SY',
+    receipt_image_url: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=400&q=80',
+    status: 'pending_verification',
+    created_at: '2026-11-07T16:45:00Z',
   },
   {
     id: 'item-203',
     order_id: 'ord-103',
     order_number: 'SND-98410-ALP',
-    product_id: 'prod-med-01',
+    product_id: 'prod-chronic-care-medical-kit',
     product_title: 'باقة الرعاية الصحية وأدوية كبار السن',
     vendor_id: 'vendor-aleppo-02',
-    customer_name: 'محمود الصالح',
-    customer_email: 'saleh.m@yahoo.com',
-    customer_phone: '+963 955 443 322',
+    customer_name: 'رنا الدندشي (مغتربة في كندا)',
+    customer_email: 'rana.dandashi@yahoo.com',
+    customer_phone: '+1 416 555 0192',
+    recipient_name: 'الحاج محمود الصالح',
+    recipient_phone: '+963 955 443 322',
     delivery_address: 'حلب، الجميلية - شارع الملك فيصل',
     city: 'حلب',
     quantity: 1,
     unit_price: 42.00,
     total_price: 42.00,
-    platform_fee: 4.20,
-    net_vendor_amount: 37.80,
-    status: 'shipped',
-    created_at: '2026-11-05T10:15:00Z',
+    platform_fee: 0,
+    net_vendor_amount: 42.00,
+    payment_method: 'syriatel_cash',
+    receipt_number: 'SYRIATEL-994120',
+    status: 'completed',
+    created_at: '2026-11-06T10:15:00Z',
   },
 ];
 
@@ -416,5 +432,124 @@ export function settleVendorPendingBalance(vendorId: string, payoutNote?: string
     settledTotal += w.amount;
   }
   return settledTotal;
+}
+
+// ==============================================================================
+// LOCAL SYRIAN TRANSFER RAILS: (الهرم، الفؤاد، سيريتل كاش، شام كاش)
+// ==============================================================================
+
+export function getSellerTransferDetails(
+  vendorId?: string,
+  method: LocalTransferMethod = 'cham_cash'
+): SellerTransferDetail {
+  const isDamascus = !vendorId || vendorId.includes('damascus');
+  const isAleppo = vendorId?.includes('aleppo');
+
+  const sellerName = isDamascus
+    ? 'محمد رضوان الشامي'
+    : isAleppo
+    ? 'أحمد كمال الحلبي'
+    : 'مستودعات الشام الغذائية';
+
+  const phone = isDamascus ? '0944112233' : isAleppo ? '0933556778' : '0944998877';
+  const city = isDamascus ? 'دمشق' : isAleppo ? 'حلب' : 'دمشق';
+
+  switch (method) {
+    case 'al_haram':
+      return {
+        method: 'al_haram',
+        methodNameAr: 'شركة الهرم للحوالات (Al-Haram)',
+        methodNameEn: 'Al-Haram Remittance',
+        fullName: sellerName,
+        phoneNumber: phone,
+        city: city,
+        branchOrAccount: isDamascus ? 'دمشق - فرع البرامكة' : 'حلب - فرع الجميلية',
+        instructionsAr: 'توجه لأي فرع لشركة الهرم وأرسل الحوالة بالاسم والمدينة المحددة، ثم أدخل رقم إشعار الحوالة أدناه.',
+        instructionsEn: 'Visit any Al-Haram branch, remit funds to the beneficiary above, and enter the voucher number below.',
+      };
+    case 'al_fouad':
+      return {
+        method: 'al_fouad',
+        methodNameAr: 'شركة الفؤاد للحوالات (Al-Fouad)',
+        methodNameEn: 'Al-Fouad Remittance',
+        fullName: sellerName,
+        phoneNumber: phone,
+        city: city,
+        branchOrAccount: isDamascus ? 'دمشق - فرع الحلبوني' : 'حلب - فرع الفرقان',
+        instructionsAr: 'أرسل الحوالة عبر فروع شركة الفؤاد باسم المستلم والمدينة، ثم اكتب رقم إشعار الحوالة لتأكيد الطلب.',
+        instructionsEn: 'Send the transfer via Al-Fouad to the recipient name & city, then input the voucher number.',
+      };
+    case 'syriatel_cash':
+      return {
+        method: 'syriatel_cash',
+        methodNameAr: 'سيريتل كاش (Syriatel Cash)',
+        methodNameEn: 'Syriatel Cash',
+        fullName: sellerName,
+        phoneNumber: isDamascus ? '0933887711' : '0933556778',
+        city: city,
+        branchOrAccount: 'محفظة سيريتل كاش إلكترونية',
+        instructionsAr: 'حول المبلغ عبر تطبيق سيريتل كاش (*580#) إلى رقم الهاتف أعلاه، ثم أدخل رقم العملية أدناه.',
+        instructionsEn: 'Transfer funds via Syriatel Cash app to the phone number above, then enter the transaction ID.',
+      };
+    case 'cham_cash':
+    default:
+      return {
+        method: 'cham_cash',
+        methodNameAr: 'شام كاش (Cham Cash)',
+        methodNameEn: 'Cham Cash',
+        fullName: sellerName,
+        phoneNumber: phone,
+        city: city,
+        branchOrAccount: isDamascus ? 'CHAM-9844-0129' : 'CHAM-7721-0348',
+        instructionsAr: 'افتح تطبيق شام كاش وحول المبلغ إلى رقم الحساب أعلاه، ثم انسخ رقم العملية والصقه أدناه لتأكيد طلبك فوراً.',
+        instructionsEn: 'Transfer via Cham Cash app to the account above, and paste the transaction reference below.',
+      };
+  }
+}
+
+export function createVendorOrderItem(data: {
+  product_id: string;
+  product_title: string;
+  vendor_id: string;
+  customer_name: string;
+  customer_email: string;
+  customer_phone?: string;
+  recipient_name: string;
+  recipient_phone: string;
+  delivery_address: string;
+  city: string;
+  quantity: number;
+  unit_price: number;
+  payment_method: string;
+  receipt_number: string;
+  receipt_image_url?: string;
+}): VendorOrderItem {
+  const newOrder: VendorOrderItem = {
+    id: `item-${Date.now().toString().slice(-6)}`,
+    order_id: `ord-${Date.now().toString().slice(-6)}`,
+    order_number: `SND-${Date.now().toString().slice(-5)}-SY`,
+    product_id: data.product_id,
+    product_title: data.product_title,
+    vendor_id: data.vendor_id || 'vendor-damascus-01',
+    customer_name: data.customer_name,
+    customer_email: data.customer_email,
+    customer_phone: data.customer_phone,
+    recipient_name: data.recipient_name,
+    recipient_phone: data.recipient_phone,
+    delivery_address: data.delivery_address,
+    city: data.city,
+    quantity: data.quantity,
+    unit_price: data.unit_price,
+    total_price: data.quantity * data.unit_price,
+    platform_fee: 0,
+    net_vendor_amount: data.quantity * data.unit_price,
+    payment_method: data.payment_method,
+    receipt_number: data.receipt_number,
+    receipt_image_url: data.receipt_image_url,
+    status: 'pending_verification',
+    created_at: new Date().toISOString(),
+  };
+  vendorOrderItems = [newOrder, ...vendorOrderItems];
+  return newOrder;
 }
 

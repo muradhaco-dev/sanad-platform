@@ -110,17 +110,23 @@ export default function ProductDetailClient({ product }: { product: Product }) {
                   </div>
                 </div>
 
-                {/* Primary Checkout Button via Lemon Squeezy */}
+                {/* Primary Checkout Button via Syrian Local Remittance */}
                 <div className="pt-2">
                   <LemonCheckoutButton
                     productId={product.id}
                     productName={title}
                     priceUSD={product.price_usd}
-                    variantId={product.lemon_variant_id}
+                    productImage={product.image_url}
+                    vendorId={product.vendor_id}
+                    vendorName={product.vendor_name}
                   />
                   <p className="text-[11px] text-center text-slate-400 mt-2 flex items-center justify-center gap-1.5">
-                    <Lock className="w-3 h-3 text-emerald-600" />
-                    <span>{t('securePayment')} • 256-Bit SSL Protection</span>
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>
+                      {lang === 'ar'
+                        ? 'تحويل محلي مباشر • الهرم • الفؤاد • سيريتل • شام كاش'
+                        : 'Direct Syrian Remittance • No Foreign Bank Cards Required'}
+                    </span>
                   </p>
                 </div>
               </div>

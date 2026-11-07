@@ -5,21 +5,22 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { supabase, signOutUser } from '@/lib/supabaseClient';
-import { StoreOrder, SavedPaymentCard } from '@/types/store';
+import { StoreOrder } from '@/types/store';
 import {
   Package,
-  CreditCard,
+  Building2,
   User,
   ShieldCheck,
-  ExternalLink,
-  Plus,
-  Clock,
   CheckCircle2,
-  Trash2,
   LogOut,
   ShoppingBag,
   Loader2,
-  FileText
+  FileText,
+  Clock,
+  Copy,
+  Check,
+  Smartphone,
+  CreditCard
 } from 'lucide-react';
 
 export default function CustomerDashboardPage() {
@@ -28,56 +29,45 @@ export default function CustomerDashboardPage() {
 
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'orders' | 'cards' | 'account'>('orders');
+  const [activeTab, setActiveTab] = useState<'orders' | 'methods' | 'account'>('orders');
+  const [copiedReceipt, setCopiedReceipt] = useState<string | null>(null);
 
-  // Realistic sample order history for one-time purchases
+  // Realistic sample order history for one-time purchases with Syrian Local Remittances
   const [orders, setOrders] = useState<StoreOrder[]>([
     {
       id: 'ord-8921',
-      order_number: 'LS-90184-SANAD',
+      order_number: 'SND-90184-SY',
       user_email: '',
       product_id: 'prod-family-nutrition-box',
       product_title_en: 'Comprehensive Family Nutrition Box',
       product_title_ar: 'السلة الغذائية العائلية الشاملة',
       amount_usd: 55,
+      payment_method: 'cham_cash',
+      receipt_number: 'CHAM-8841920-DM',
+      recipient_name: 'أم عمار المحمد',
+      recipient_phone: '0944123456',
+      delivery_city: 'دمشق',
+      delivery_address: 'المزة فيلات غربية - بناء النرجس',
       status: 'completed',
       created_at: '2026-11-02T14:30:00Z',
-      receipt_url: 'https://app.lemonsqueezy.com/my-orders',
-      lemon_order_id: 'ls_ord_8921'
     },
     {
       id: 'ord-8945',
-      order_number: 'LS-90220-SANAD',
+      order_number: 'SND-90220-SY',
       user_email: '',
       product_id: 'prod-chronic-care-medical-kit',
       product_title_en: 'Chronic Care & Senior Medical Kit',
       product_title_ar: 'باقة الرعاية الصحية وأدوية كبار السن',
       amount_usd: 42,
-      status: 'processing',
+      payment_method: 'al_haram',
+      receipt_number: 'HRM-592810-SY',
+      recipient_name: 'أبو أحمد الحلبي',
+      recipient_phone: '0933556778',
+      delivery_city: 'حلب',
+      delivery_address: 'الفرقان - شارع الشرطة',
+      status: 'pending_verification',
       created_at: '2026-11-05T09:15:00Z',
-      receipt_url: 'https://app.lemonsqueezy.com/my-orders',
-      lemon_order_id: 'ls_ord_8945'
-    }
-  ]);
-
-  // Saved Payment Methods
-  const [savedCards, setSavedCards] = useState<SavedPaymentCard[]>([
-    {
-      id: 'card-1',
-      brand: 'visa',
-      last4: '4242',
-      exp_month: 8,
-      exp_year: 2028,
-      is_default: true
     },
-    {
-      id: 'card-2',
-      brand: 'mastercard',
-      last4: '8831',
-      exp_month: 11,
-      exp_year: 2027,
-      is_default: false
-    }
   ]);
 
   useEffect(() => {
@@ -104,9 +94,12 @@ export default function CustomerDashboardPage() {
     return () => subscription.unsubscribe();
   }, [router]);
 
-  const handleOpenLemonCustomerPortal = () => {
-    // In production, fetch customer portal URL from Lemon Squeezy API or use their direct portal
-    window.open('https://app.lemonsqueezy.com/my-orders', '_blank');
+  const handleCopy = (text: string) => {
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(text);
+      setCopiedReceipt(text);
+      setTimeout(() => setCopiedReceipt(null), 2500);
+    }
   };
 
   const handleSignOut = async () => {
@@ -133,10 +126,10 @@ export default function CustomerDashboardPage() {
               <span>{t('verifiedEmail')}</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-              {t('dashboardTitle')}
+              {lang === 'ar' ? 'لوحة تحكم المشتري والمغترب' : 'Customer & Expat Dashboard'}
             </h1>
             <p className="text-xs text-slate-500 mt-1">
-              {user?.email} • {t('dashboardSubtitle')}
+              {user?.email} • {lang === 'ar' ? 'متابعة الطلبات الموجهة للأهل في سوريا' : 'Track orders sent to family in Syria'}
             </p>
           </div>
 
@@ -176,15 +169,15 @@ export default function CustomerDashboardPage() {
           </button>
 
           <button
-            onClick={() => setActiveTab('cards')}
+            onClick={() => setActiveTab('methods')}
             className={`pb-3 px-4 text-xs sm:text-sm font-bold border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
-              activeTab === 'cards'
+              activeTab === 'methods'
                 ? 'border-emerald-600 text-emerald-700'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
-            <CreditCard className="w-4 h-4" />
-            <span>{t('tabPaymentMethods')}</span>
+            <Building2 className="w-4 h-4" />
+            <span>{lang === 'ar' ? 'طرق التحويل المعتمدة في سوريا' : 'Supported Syrian Rails'}</span>
           </button>
 
           <button
@@ -200,7 +193,7 @@ export default function CustomerDashboardPage() {
           </button>
         </div>
 
-        {/* Tab 1: Orders History (One-Time Purchases) */}
+        {/* Tab 1: Orders History */}
         {activeTab === 'orders' && (
           <div className="space-y-4">
             {orders.length === 0 ? (
@@ -219,54 +212,79 @@ export default function CustomerDashboardPage() {
             ) : (
               orders.map((order) => {
                 const title = lang === 'ar' ? order.product_title_ar : order.product_title_en;
+                const isPending = order.status === 'pending_verification';
 
                 return (
                   <div
                     key={order.id}
-                    className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                    className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4"
                   >
                     <div className="flex items-start gap-3.5">
                       <div className="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold text-sm shrink-0">
                         📦
                       </div>
-                      <div>
+                      <div className="space-y-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <h3 className="text-sm font-bold text-slate-900">{title}</h3>
-                          <span className="text-[11px] font-mono text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
+                          <span className="text-[11px] font-mono text-slate-600 bg-slate-100 px-2 py-0.5 rounded font-bold">
                             {order.order_number}
                           </span>
                         </div>
-                        <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
+
+                        <div className="flex items-center gap-3 text-xs text-slate-500">
                           <span className="flex items-center gap-1">
                             <Clock className="w-3.5 h-3.5 text-slate-400" />
-                            {new Date(order.created_at).toLocaleDateString(lang === 'ar' ? 'ar-SY' : 'en-US', {
-                              dateStyle: 'medium',
-                            })}
+                            {new Date(order.created_at).toLocaleDateString(lang === 'ar' ? 'ar-SY' : 'en-US')}
                           </span>
                           <span>•</span>
-                          <span className="text-emerald-700 font-bold">${order.amount_usd} USD ({t('oneTimePayment')})</span>
+                          <span className="text-emerald-700 font-bold">${order.amount_usd} USD</span>
+                        </div>
+
+                        {/* Remittance & Recipient Details */}
+                        <div className="pt-1 text-xs text-slate-600 flex flex-wrap items-center gap-2">
+                          <span className="bg-amber-50 text-amber-800 border border-amber-200 font-mono font-bold px-2 py-0.5 rounded">
+                            {lang === 'ar' ? 'رقم الإشعار:' : 'Receipt:'} {order.receipt_number}
+                          </span>
+                          <span className="text-slate-400">|</span>
+                          <span>
+                            {lang === 'ar' ? 'المستلم:' : 'Recipient:'} <strong className="text-slate-800">{order.recipient_name}</strong> ({order.delivery_city})
+                          </span>
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-3 self-end sm:self-center">
+                    <div className="flex items-center gap-3 self-end md:self-center">
                       <span
-                        className={`text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1.5 ${
-                          order.status === 'completed'
-                            ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                            : 'bg-amber-50 text-amber-800 border border-amber-200'
+                        className={`text-xs font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5 ${
+                          isPending
+                            ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                            : 'bg-emerald-50 text-emerald-800 border border-emerald-200'
                         }`}
                       >
                         <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>{order.status === 'completed' ? (lang === 'ar' ? 'تم التسليم' : 'Delivered') : (lang === 'ar' ? 'قيد التجهيز' : 'Processing')}</span>
+                        <span>
+                          {isPending
+                            ? lang === 'ar' ? 'قيد تحقق التاجر' : 'Pending Verification'
+                            : lang === 'ar' ? 'تم التسليم للأهل' : 'Delivered to Family'}
+                        </span>
                       </span>
 
                       <button
-                        onClick={handleOpenLemonCustomerPortal}
-                        className="inline-flex items-center gap-1 text-xs font-bold text-slate-600 hover:text-emerald-700 bg-slate-50 hover:bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200 transition"
+                        type="button"
+                        onClick={() => handleCopy(order.receipt_number)}
+                        className="inline-flex items-center gap-1 text-xs font-bold text-slate-600 hover:text-emerald-700 bg-slate-50 hover:bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200 transition cursor-pointer"
                       >
-                        <FileText className="w-3.5 h-3.5" />
-                        <span>{lang === 'ar' ? 'الفاتورة' : 'Receipt'}</span>
+                        {copiedReceipt === order.receipt_number ? (
+                          <>
+                            <Check className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>{lang === 'ar' ? 'تم النسخ' : 'Copied'}</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5" />
+                            <span>{lang === 'ar' ? 'نسخ الإشعار' : 'Copy'}</span>
+                          </>
+                        )}
                       </button>
                     </div>
                   </div>
@@ -276,78 +294,44 @@ export default function CustomerDashboardPage() {
           </div>
         )}
 
-        {/* Tab 2: Saved Payment Methods & Cards */}
-        {activeTab === 'cards' && (
+        {/* Tab 2: Syrian Supported Payment Rails */}
+        {activeTab === 'methods' && (
           <div className="space-y-6">
-            {/* Info Notice about Lemon Squeezy Merchant of Record */}
             <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-4">
-              <div className="flex items-start justify-between gap-4">
-                <div className="space-y-1">
-                  <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                    <CreditCard className="w-5 h-5 text-emerald-600" />
-                    <span>{t('manageCardsLemon')}</span>
-                  </h3>
-                  <p className="text-xs text-slate-500 leading-relaxed max-w-2xl">
-                    {t('manageCardsDesc')}
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleOpenLemonCustomerPortal}
-                  className="shrink-0 inline-flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow-xs transition cursor-pointer"
-                >
-                  <span>{t('openCustomerPortal')}</span>
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </button>
+              <div className="space-y-1">
+                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <Building2 className="w-5 h-5 text-emerald-600" />
+                  <span>{lang === 'ar' ? 'قنوات الدفع والتحويل المحلي المعتمدة في سوريا' : 'Supported Syrian Transfer Rails'}</span>
+                </h3>
+                <p className="text-xs text-slate-500 leading-relaxed max-w-2xl">
+                  {lang === 'ar'
+                    ? 'منصة سَنَد تعتمد على شبكات التحويل الرسمية والمحلية مباشرة بين المغترب والتاجر السوري بدون وسطاء أجانب أو بطاقات ائتمان بنكية.'
+                    : 'Sanad connects Syrian expats directly with local merchants through domestic licensed remittance rails.'}
+                </p>
               </div>
 
-              {/* Saved Cards Cards List */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-slate-100">
-                {savedCards.map((card) => (
-                  <div
-                    key={card.id}
-                    className="p-4 rounded-xl border border-slate-200 bg-slate-50/60 flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-8 rounded-md bg-white border border-slate-200 flex items-center justify-center font-bold text-xs uppercase text-slate-700 shadow-xs">
-                        {card.brand}
-                      </div>
-                      <div>
-                        <div className="text-xs font-bold text-slate-900 font-mono">
-                          •••• •••• •••• {card.last4}
-                        </div>
-                        <div className="text-[11px] text-slate-400">
-                          Expires {card.exp_month}/{card.exp_year}
-                          {card.is_default && (
-                            <span className="ms-2 text-emerald-700 font-bold bg-emerald-100 px-1.5 py-0.2 rounded text-[10px]">
-                              {lang === 'ar' ? 'افتراضية' : 'Default'}
-                            </span>
-                          )}
-                        </div>
-                      </div>
+                {[
+                  { name: 'شام كاش (Cham Cash)', type: 'محفظة رقمية سورية', desc: 'تحويل مباشر وفوري عبر تطبيق شام كاش', active: true },
+                  { name: 'سيريتل كاش (Syriatel Cash)', type: 'دفع عبر الجوال *580#', desc: 'متاح على مدار الساعة عبر رقم هاتف التاجر', active: true },
+                  { name: 'شركة الهرم للحوالات (Al-Haram)', type: 'حوالات نقدية رسمية', desc: 'استلام عبر كافة الفروع بالهوية الشخصية', active: true },
+                  { name: 'شركة الفؤاد للحوالات (Al-Fouad)', type: 'حوالات نقدية داخلية', desc: 'إشعار ورقي ورقم كود استلام فوري', active: true },
+                ].map((item, idx) => (
+                  <div key={idx} className="p-4 rounded-xl border border-slate-200 bg-slate-50/60 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-900 text-xs sm:text-sm">{item.name}</span>
+                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">نشط</span>
                     </div>
-
-                    <button
-                      type="button"
-                      onClick={handleOpenLemonCustomerPortal}
-                      className="text-xs text-slate-400 hover:text-slate-700 font-semibold"
-                    >
-                      {lang === 'ar' ? 'تعديل' : 'Edit'}
-                    </button>
+                    <div className="text-[11px] font-semibold text-emerald-800">{item.type}</div>
+                    <div className="text-xs text-slate-500">{item.desc}</div>
                   </div>
                 ))}
-              </div>
-
-              <div className="text-[11px] text-slate-400 flex items-center gap-1.5 pt-2">
-                <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                <span>{t('savedCardsNotice')}</span>
               </div>
             </div>
           </div>
         )}
 
-        {/* Tab 3: Account & Security */}
+        {/* Tab 3: Account */}
         {activeTab === 'account' && (
           <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-4 max-w-xl">
             <h3 className="text-base font-bold text-slate-900">{t('tabAccount')}</h3>
@@ -366,7 +350,7 @@ export default function CustomerDashboardPage() {
               <div className="p-3 bg-slate-50 rounded-xl flex items-center justify-between">
                 <div>
                   <div className="font-bold text-slate-800">{lang === 'ar' ? 'نوع الحساب' : 'Account Type'}</div>
-                  <div className="text-slate-500 mt-0.5">{lang === 'ar' ? 'مشتري لمرة واحدة (One-Time Customer)' : 'One-Time Customer'}</div>
+                  <div className="text-slate-500 mt-0.5">{lang === 'ar' ? 'مشتري / مغترب سوري' : 'Syrian Expat Buyer'}</div>
                 </div>
                 <span className="bg-blue-100 text-blue-800 px-2.5 py-1 rounded-full text-[11px] font-bold">
                   Active

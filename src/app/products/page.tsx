@@ -158,12 +158,14 @@ export default function ProductsPage() {
                     </Link>
                   </div>
 
-                  {/* Lemon Squeezy One-Time Checkout Overlay */}
+                  {/* Syrian Local Remittance Checkout Button */}
                   <LemonCheckoutButton
                     productId={product.id}
                     productName={title}
                     priceUSD={product.price_usd}
-                    variantId={product.lemon_variant_id}
+                    productImage={product.image_url}
+                    vendorId={product.vendor_id}
+                    vendorName={product.vendor_name}
                   />
                 </div>
               </div>

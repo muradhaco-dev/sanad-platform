@@ -201,12 +201,14 @@ export default function HomePage() {
                     </Link>
                   </div>
 
-                  {/* Lemon Squeezy One-Time Checkout Overlay */}
+                  {/* Syrian Local Remittance Checkout Button */}
                   <LemonCheckoutButton
                     productId={product.id}
                     productName={title}
                     priceUSD={product.price_usd}
-                    variantId={product.lemon_variant_id}
+                    productImage={product.image_url}
+                    vendorId={product.vendor_id}
+                    vendorName={product.vendor_name}
                   />
                 </div>
               </div>
@@ -225,13 +227,13 @@ export default function HomePage() {
             </div>
             <h3 className="text-xl sm:text-2xl lg:text-3xl font-black">
               {lang === 'ar'
-                ? 'شراء آمن ومضمون 100% مع ضمان استرداد الأموال'
-                : '100% Risk-Free Guarantee with Full Purchase Protection'}
+                ? 'تحويل محلي آمن ومباشر 100% بين المغتربين والداخل السوري'
+                : '100% Direct Local Remittance Flow to Syria'}
             </h3>
             <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
               {lang === 'ar'
-                ? 'جميع الطلبات محمية بواسطة Lemon Squeezy (Merchant of Record). في حال تعذر التوصيل الميداني، يُعاد المبلغ بالكامل لبطاقتك في غضون أيام عمل قليلة.'
-                : 'All transactions are backed by Lemon Squeezy Merchant of Record with a 14-day refund policy. If field fulfillment cannot be completed, you receive a full refund directly to your original card.'}
+                ? 'ندعم قنوات التحويل الرسمية في سوريا: شركة الهرم، شركة الفؤاد، محفظة سيريتل كاش، وشام كاش. يتم تسليم السلال والاحتياجات الأساسية ليد الأهل مباشرة بعد تحقق التاجر من رقم الإشعار.'
+                : 'We support licensed Syrian remittance rails: Al-Haram, Al-Fouad, Syriatel Cash, and Cham Cash. Provisions are dispatched directly to your family in Syria once the local merchant verifies your transfer.'}
             </p>
           </div>
 

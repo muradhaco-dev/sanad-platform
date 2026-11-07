@@ -1,18 +1,23 @@
 -- ==============================================================================
--- SANAD MULTI-VENDOR MARKETPLACE: 100% BULLETPROOF SUPABASE SQL SCHEMA
--- Auto-migrates existing tables and ensures ALL columns exist before policies
+-- SANAD (سَنَد) MULTI-VENDOR PLATFORM: 100% BULLETPROOF SUPABASE SQL SCHEMA
+-- Fixes: enum user_role, missing columns on pre-existing tables, RLS policies
 -- ==============================================================================
 
--- 1. Safely drop any legacy user_role enum if it existed with old conflicting values
-DO $$ BEGIN
-    DROP TYPE IF EXISTS user_role CASCADE;
-    CREATE TYPE user_role AS ENUM ('admin', 'vendor', 'customer');
-EXCEPTION WHEN OTHERS THEN
-    NULL;
+-- 1. FIX ENUM / ROLE COLUMN SAFELY
+-- If profiles table exists and uses an enum, convert it to text to prevent 'invalid input value' errors
+DO $$ 
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'role'
+    ) THEN
+        ALTER TABLE public.profiles ALTER COLUMN role TYPE text;
+        ALTER TABLE public.profiles ALTER COLUMN role SET DEFAULT 'customer';
+    END IF;
 END $$;
 
 -- ==============================================================================
--- 2. CREATE ALL TABLES (IF NOT EXIST)
+-- 2. CREATE ALL TABLES IF THEY DO NOT EXIST
 -- ==============================================================================
 
 -- 2.1 Profiles Table
@@ -20,10 +25,14 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     email TEXT NOT NULL,
     full_name TEXT NOT NULL,
-    role TEXT NOT NULL DEFAULT 'customer' CHECK (role IN ('admin', 'vendor', 'customer')),
+    role TEXT NOT NULL DEFAULT 'customer',
     store_name TEXT,
+    logo_url TEXT,
     city TEXT,
     phone TEXT,
+    latitude NUMERIC(9, 6),
+    longitude NUMERIC(9, 6),
+    location_name TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -32,12 +41,12 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 CREATE TABLE IF NOT EXISTS public.products (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     vendor_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
-    slug TEXT UNIQUE NOT NULL,
-    title_en TEXT NOT NULL,
+    slug TEXT UNIQUE,
+    title_en TEXT,
     title_ar TEXT NOT NULL,
     description_en TEXT,
     description_ar TEXT,
-    price_usd NUMERIC(10, 2) NOT NULL,
+    price_usd NUMERIC(10, 2) NOT NULL DEFAULT 0,
     category TEXT NOT NULL DEFAULT 'food',
     image_url TEXT,
     latitude NUMERIC(9, 6),
@@ -49,21 +58,22 @@ CREATE TABLE IF NOT EXISTS public.products (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 2.3 Orders Table
+-- 2.3 Orders Table (Supports Local Transfer Checkout: Al-Haram, Al-Fouad, Syriatel Cash, Cham Cash)
 CREATE TABLE IF NOT EXISTS public.orders (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    order_number TEXT UNIQUE NOT NULL,
+    order_number TEXT UNIQUE,
     customer_id UUID REFERENCES public.profiles(id),
-    user_id UUID,
-    customer_name TEXT NOT NULL,
-    customer_email TEXT NOT NULL,
+    user_id UUID REFERENCES public.profiles(id),
+    customer_name TEXT,
+    customer_email TEXT,
     customer_phone TEXT,
     delivery_address TEXT,
     city TEXT,
     total_amount NUMERIC(10, 2) NOT NULL DEFAULT 0,
-    payment_status TEXT NOT NULL DEFAULT 'paid',
-    payment_gateway TEXT DEFAULT 'lemon_squeezy',
-    lemon_order_id TEXT,
+    payment_status TEXT NOT NULL DEFAULT 'pending_verification',
+    payment_method TEXT,
+    receipt_number TEXT,
+    receipt_image_url TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -71,11 +81,11 @@ CREATE TABLE IF NOT EXISTS public.orders (
 CREATE TABLE IF NOT EXISTS public.order_items (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     order_id UUID REFERENCES public.orders(id) ON DELETE CASCADE,
-    order_number TEXT NOT NULL,
+    order_number TEXT,
     product_id UUID REFERENCES public.products(id),
     vendor_id UUID REFERENCES public.profiles(id) NOT NULL,
     product_title TEXT NOT NULL,
-    customer_name TEXT NOT NULL,
+    customer_name TEXT,
     customer_email TEXT,
     customer_phone TEXT,
     delivery_address TEXT,
@@ -85,11 +95,14 @@ CREATE TABLE IF NOT EXISTS public.order_items (
     total_price NUMERIC(10, 2) NOT NULL DEFAULT 0,
     platform_fee NUMERIC(10, 2) NOT NULL DEFAULT 0,
     net_vendor_amount NUMERIC(10, 2) NOT NULL DEFAULT 0,
-    status TEXT NOT NULL DEFAULT 'paid',
+    status TEXT NOT NULL DEFAULT 'pending_verification',
+    payment_method TEXT,
+    receipt_number TEXT,
+    receipt_image_url TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 2.5 Vendor Payout Methods Table
+-- 2.5 Vendor Payout Methods Table (Cham Cash, Al-Haram, Syriatel Cash, etc.)
 CREATE TABLE IF NOT EXISTS public.vendor_payout_methods (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     vendor_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
@@ -120,7 +133,7 @@ CREATE TABLE IF NOT EXISTS public.withdrawals (
 CREATE TABLE IF NOT EXISTS public.delivery_addresses (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
-    title TEXT NOT NULL, -- e.g. 'بيت الأهل - دمشق', 'منزل العائلة - حلب'
+    title TEXT NOT NULL,
     recipient_name TEXT NOT NULL,
     recipient_phone TEXT NOT NULL,
     city TEXT NOT NULL,
@@ -132,8 +145,10 @@ CREATE TABLE IF NOT EXISTS public.delivery_addresses (
 );
 
 -- ==============================================================================
--- 3. ENSURE ALL COLUMNS EXIST ON PRE-EXISTING TABLES (MIGRATION SAFEGUARD)
+-- 3. GUARANTEE ALL COLUMNS EXIST ON PRE-EXISTING TABLES
+-- (Prevents "column does not exist" errors when tables were created earlier)
 -- ==============================================================================
+
 -- Profiles columns
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'customer';
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS store_name TEXT;
@@ -146,33 +161,65 @@ ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS location_name TEXT;
 
 -- Products columns
 ALTER TABLE public.products ADD COLUMN IF NOT EXISTS vendor_id UUID REFERENCES public.profiles(id);
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS slug TEXT;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS title_en TEXT;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS title_ar TEXT;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS description_en TEXT;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS description_ar TEXT;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS price_usd NUMERIC(10, 2) DEFAULT 0;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS category TEXT DEFAULT 'food';
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS image_url TEXT;
 ALTER TABLE public.products ADD COLUMN IF NOT EXISTS latitude NUMERIC(9, 6);
 ALTER TABLE public.products ADD COLUMN IF NOT EXISTS longitude NUMERIC(9, 6);
 ALTER TABLE public.products ADD COLUMN IF NOT EXISTS location_name TEXT;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS stock_status TEXT DEFAULT 'in_stock';
 ALTER TABLE public.products ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
 
--- Orders columns (Safeguard for customer_id & user_id)
+-- Orders columns (Safeguard for customer_id, payment_method, receipt_number)
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS order_number TEXT;
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS customer_id UUID;
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS user_id UUID;
-ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS order_number TEXT;
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS customer_name TEXT;
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS customer_email TEXT;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS customer_phone TEXT;
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS delivery_address TEXT;
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS city TEXT;
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS total_amount NUMERIC(10, 2) DEFAULT 0;
-ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS payment_status TEXT DEFAULT 'paid';
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS payment_status TEXT DEFAULT 'pending_verification';
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS payment_method TEXT;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS receipt_number TEXT;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS receipt_image_url TEXT;
 
 -- Order items columns
-ALTER TABLE public.order_items ADD COLUMN IF NOT EXISTS vendor_id UUID;
+ALTER TABLE public.order_items ADD COLUMN IF NOT EXISTS order_id UUID REFERENCES public.orders(id) ON DELETE CASCADE;
+ALTER TABLE public.order_items ADD COLUMN IF NOT EXISTS order_number TEXT;
+ALTER TABLE public.order_items ADD COLUMN IF NOT EXISTS product_id UUID REFERENCES public.products(id);
+ALTER TABLE public.order_items ADD COLUMN IF NOT EXISTS vendor_id UUID REFERENCES public.profiles(id);
+ALTER TABLE public.order_items ADD COLUMN IF NOT EXISTS product_title TEXT;
+ALTER TABLE public.order_items ADD COLUMN IF NOT EXISTS customer_name TEXT;
+ALTER TABLE public.order_items ADD COLUMN IF NOT EXISTS customer_email TEXT;
+ALTER TABLE public.order_items ADD COLUMN IF NOT EXISTS customer_phone TEXT;
+ALTER TABLE public.order_items ADD COLUMN IF NOT EXISTS delivery_address TEXT;
+ALTER TABLE public.order_items ADD COLUMN IF NOT EXISTS city TEXT;
+ALTER TABLE public.order_items ADD COLUMN IF NOT EXISTS quantity INTEGER DEFAULT 1;
+ALTER TABLE public.order_items ADD COLUMN IF NOT EXISTS unit_price NUMERIC(10, 2) DEFAULT 0;
 ALTER TABLE public.order_items ADD COLUMN IF NOT EXISTS total_price NUMERIC(10, 2) DEFAULT 0;
 ALTER TABLE public.order_items ADD COLUMN IF NOT EXISTS platform_fee NUMERIC(10, 2) DEFAULT 0;
 ALTER TABLE public.order_items ADD COLUMN IF NOT EXISTS net_vendor_amount NUMERIC(10, 2) DEFAULT 0;
-ALTER TABLE public.order_items ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'paid';
+ALTER TABLE public.order_items ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'pending_verification';
+ALTER TABLE public.order_items ADD COLUMN IF NOT EXISTS payment_method TEXT;
+ALTER TABLE public.order_items ADD COLUMN IF NOT EXISTS receipt_number TEXT;
+ALTER TABLE public.order_items ADD COLUMN IF NOT EXISTS receipt_image_url TEXT;
 
 -- Withdrawals columns
-ALTER TABLE public.withdrawals ADD COLUMN IF NOT EXISTS vendor_id UUID;
+ALTER TABLE public.withdrawals ADD COLUMN IF NOT EXISTS vendor_id UUID REFERENCES public.profiles(id);
 ALTER TABLE public.withdrawals ADD COLUMN IF NOT EXISTS amount NUMERIC(10, 2) DEFAULT 0;
 ALTER TABLE public.withdrawals ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'pending';
+ALTER TABLE public.withdrawals ADD COLUMN IF NOT EXISTS payout_method_id UUID REFERENCES public.vendor_payout_methods(id);
+ALTER TABLE public.withdrawals ADD COLUMN IF NOT EXISTS transaction_ref TEXT;
+ALTER TABLE public.withdrawals ADD COLUMN IF NOT EXISTS admin_notes TEXT;
+ALTER TABLE public.withdrawals ADD COLUMN IF NOT EXISTS paid_at TIMESTAMPTZ;
+ALTER TABLE public.withdrawals ADD COLUMN IF NOT EXISTS settled_by UUID REFERENCES public.profiles(id);
 
 -- ==============================================================================
 -- 4. PROFILE CREATION TRIGGER (ON SIGNUP)
@@ -268,6 +315,11 @@ USING (
     OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
 );
 
+DROP POLICY IF EXISTS "Anyone can create orders" ON public.orders;
+CREATE POLICY "Anyone can create orders" 
+ON public.orders FOR INSERT 
+WITH CHECK (true);
+
 -- 6.4 Order Items Policies
 DROP POLICY IF EXISTS "Vendors can view own order items" ON public.order_items;
 CREATE POLICY "Vendors can view own order items" 
@@ -276,6 +328,11 @@ USING (
     auth.uid() = vendor_id OR
     EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
 );
+
+DROP POLICY IF EXISTS "Anyone can insert order items" ON public.order_items;
+CREATE POLICY "Anyone can insert order items" 
+ON public.order_items FOR INSERT 
+WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Vendors can update order item status" ON public.order_items;
 CREATE POLICY "Vendors can update order item status" 

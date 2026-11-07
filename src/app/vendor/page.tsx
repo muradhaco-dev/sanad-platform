@@ -32,6 +32,11 @@ import {
   ShieldCheck,
   Send,
   Building2,
+  Copy,
+  Check,
+  FileText,
+  AlertCircle,
+  Eye,
 } from 'lucide-react';
 
 export default function VendorDashboardPage() {
@@ -71,9 +76,34 @@ export default function VendorDashboardPage() {
     location_name: 'دمشق، كفرسوسة والبرامكة',
   });
 
-  // 2. Orders Management State
+  // 2. Orders Management State (Syrian Local Remittance Verifications)
   const [orders, setOrders] = useState<VendorOrderItem[]>([]);
   const [orderUpdatingId, setOrderUpdatingId] = useState<string | null>(null);
+  const [orderFilter, setOrderFilter] = useState<'all' | 'pending_verification' | 'completed'>('all');
+  const [copiedReceiptId, setCopiedReceiptId] = useState<string | null>(null);
+  const [selectedReceiptImage, setSelectedReceiptImage] = useState<string | null>(null);
+
+  const handleCopyReceipt = (text: string, id: string) => {
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(text);
+      setCopiedReceiptId(id);
+      setTimeout(() => setCopiedReceiptId(null), 2500);
+    }
+  };
+
+  const getMethodBadge = (method?: string) => {
+    switch (method) {
+      case 'al_haram':
+        return { label: lang === 'ar' ? 'الهرم للحوالات' : 'Al-Haram', color: 'bg-blue-100 text-blue-800 border-blue-200' };
+      case 'al_fouad':
+        return { label: lang === 'ar' ? 'شركة الفؤاد' : 'Al-Fouad', color: 'bg-purple-100 text-purple-800 border-purple-200' };
+      case 'syriatel_cash':
+        return { label: lang === 'ar' ? 'سيريتل كاش' : 'Syriatel Cash', color: 'bg-amber-100 text-amber-800 border-amber-200' };
+      case 'cham_cash':
+      default:
+        return { label: lang === 'ar' ? 'شام كاش' : 'Cham Cash', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' };
+    }
+  };
 
   // 3. Wallet & Withdrawals (Cham Cash) State
   const [payoutMethods, setPayoutMethods] = useState<VendorPayoutMethod[]>([]);
@@ -359,7 +389,10 @@ export default function VendorDashboardPage() {
   };
 
   // ================= ORDERS MANAGEMENT ACTIONS =================
-  const handleUpdateOrderStatus = async (itemId: string, newStatus: 'paid' | 'processing' | 'shipped' | 'delivered') => {
+  const handleUpdateOrderStatus = async (
+    itemId: string,
+    newStatus: 'pending_verification' | 'completed' | 'paid' | 'processing' | 'shipped' | 'delivered'
+  ) => {
     setOrderUpdatingId(itemId);
     try {
       const { error } = await supabase
@@ -375,10 +408,20 @@ export default function VendorDashboardPage() {
         });
       }
 
-      showToast(lang === 'ar' ? `تم تحديث حالة الطلب إلى: ${newStatus}` : `Order status updated to: ${newStatus}`);
-      fetchVendorData(vendorId);
+      setOrders((prev) =>
+        prev.map((o) => (o.id === itemId ? { ...o, status: newStatus as any } : o))
+      );
+
+      const statusAr =
+        newStatus === 'completed'
+          ? 'تم تأكيد استلام الحوالة وإكمال الطلب بنجاح!'
+          : newStatus === 'pending_verification'
+          ? 'قيد التحقق من إشعار الحوالة'
+          : `تم تغيير الحالة إلى: ${newStatus}`;
+
+      showToast(lang === 'ar' ? statusAr : `Order status updated to: ${newStatus}`);
     } catch (err) {
-      alert('Error updating order');
+      console.warn('Error updating order:', err);
     } finally {
       setOrderUpdatingId(null);
     }
@@ -800,189 +843,441 @@ export default function VendorDashboardPage() {
             {/* ================= TAB 2: ORDERS MANAGEMENT ================= */}
             {activeTab === 'orders' && (
               <div className="space-y-4 sm:space-y-6">
+                {/* Header Banner */}
                 <div className="bg-white p-4 sm:p-5 rounded-2xl border border-gray-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
                     <h2 className="text-sm sm:text-base font-black text-gray-900">
-                      {lang === 'ar' ? 'السلع المشتراة والمدفوعة من هذا المتجر' : 'Items Purchased from Your Store'}
+                      {lang === 'ar' ? 'سجل طلبات الحوالات المحلية وإشعارات الدفع' : 'Local Remittance Orders & Transfer Receipts'}
                     </h2>
                     <p className="text-xs text-gray-500 mt-0.5">
                       {lang === 'ar'
-                        ? 'هذا الجدول يعرض الطلبات المدفوعة عبر Lemon Squeezy مع أرباحك الصافية بعد حسم عمولة المنصة 10%'
-                        : 'Real-time table of customer purchases attributed to your vendor account.'}
+                        ? 'طابق رقم إيصال الحوالة الوارد من المشتري مع رسائل هاتفك أو إشعار فرع الصرافة لتأكيد الطلب وبدء التجهيز.'
+                        : 'Verify the transfer receipt number against your SMS or branch notification to fulfill the order.'}
                     </p>
                   </div>
-                  <div className="text-xs font-bold text-emerald-800 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 flex items-center gap-1.5 self-start sm:self-auto">
-                    <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>{lang === 'ar' ? 'الدفع مؤكد 100% ومودع بالمحفظة' : '100% Verified Payment'}</span>
+                  <div className="text-xs font-bold text-amber-800 bg-amber-50 px-3 py-1.5 rounded-xl border border-amber-200 flex items-center gap-1.5 self-start sm:self-auto">
+                    <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>{lang === 'ar' ? 'تحقق يدوي محلي: الهرم، الفؤاد، سيريتل، شام كاش' : 'Direct Local Remittance Rail'}</span>
                   </div>
                 </div>
 
-                {orders.length === 0 ? (
-                  <div className="bg-white rounded-2xl border border-dashed border-gray-300 p-8 sm:p-12 text-center space-y-3">
-                    <ShoppingBag className="w-12 h-12 text-gray-300 mx-auto" />
-                    <h3 className="text-sm font-bold text-gray-700">
-                      {lang === 'ar' ? 'لا توجد طلبات واردة حتى الآن' : 'No incoming orders yet'}
-                    </h3>
-                    <p className="text-xs text-gray-400">
-                      {lang === 'ar'
-                        ? 'ستظهر هنا البنود فور قيام أي عميل بإتمام الدفع لأحد منتجاتك المعروضة.'
-                        : 'Purchased items will appear here immediately after payment.'}
-                    </p>
-                  </div>
-                ) : (
-                  <>
-                    {/* Mobile-Friendly Cards View (Under md) */}
-                    <div className="block md:hidden space-y-3">
-                      {orders.map((item) => (
-                        <div key={item.id} className="bg-white rounded-2xl border border-gray-200 p-4 shadow-xs space-y-3">
-                          <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-                            <span className="font-mono font-bold text-gray-900 bg-slate-100 px-2 py-0.5 rounded text-xs">
-                              {item.order_number}
-                            </span>
-                            <span className="text-[10px] text-gray-400">
-                              {new Date(item.created_at).toLocaleDateString(lang === 'ar' ? 'ar-SY' : 'en-US')}
-                            </span>
-                          </div>
+                {/* Filter Tabs */}
+                <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setOrderFilter('all')}
+                    className={`px-3.5 py-2 rounded-xl font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                      orderFilter === 'all'
+                        ? 'bg-gray-900 text-white shadow-xs'
+                        : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    <span>{lang === 'ar' ? 'جميع الطلبات' : 'All Orders'}</span>
+                    <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-white/20">
+                      {orders.length}
+                    </span>
+                  </button>
 
-                          <div className="space-y-1">
-                            <h4 className="font-bold text-gray-900 text-sm">{item.product_title}</h4>
-                            <div className="text-gray-500 text-xs">
-                              {lang === 'ar' ? 'الكمية:' : 'Qty:'} <span className="font-bold text-gray-800">{item.quantity}</span> × ${item.unit_price} USD
-                            </div>
-                          </div>
+                  <button
+                    type="button"
+                    onClick={() => setOrderFilter('pending_verification')}
+                    className={`px-3.5 py-2 rounded-xl font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                      orderFilter === 'pending_verification'
+                        ? 'bg-amber-600 text-white shadow-xs'
+                        : 'bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100'
+                    }`}
+                  >
+                    <AlertCircle className="w-3.5 h-3.5" />
+                    <span>{lang === 'ar' ? 'بانتظار مطابقة الحوالة' : 'Pending Verification'}</span>
+                    <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-amber-900/20">
+                      {orders.filter((o) => o.status === 'pending_verification').length}
+                    </span>
+                  </button>
 
-                          <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 space-y-1 text-xs">
-                            <div className="font-semibold text-gray-900">{item.customer_name}</div>
-                            {item.customer_phone && (
-                              <a
-                                href={`tel:${item.customer_phone}`}
-                                className="text-emerald-700 flex items-center gap-1 font-mono text-xs font-bold"
-                              >
-                                <Phone className="w-3 h-3 text-emerald-600" />
-                                <span dir="ltr">{item.customer_phone}</span>
-                              </a>
-                            )}
-                            <div className="text-gray-500 text-[11px] truncate">
-                              {item.delivery_address || 'دمشق'}
-                            </div>
-                          </div>
+                  <button
+                    type="button"
+                    onClick={() => setOrderFilter('completed')}
+                    className={`px-3.5 py-2 rounded-xl font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                      orderFilter === 'completed'
+                        ? 'bg-emerald-600 text-white shadow-xs'
+                        : 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100'
+                    }`}
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>{lang === 'ar' ? 'تم التحقق والتنفيذ' : 'Completed'}</span>
+                    <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-900/20">
+                      {orders.filter((o) => o.status === 'completed' || o.status === 'paid' || o.status === 'delivered').length}
+                    </span>
+                  </button>
+                </div>
 
-                          <div className="flex items-center justify-between pt-1">
-                            <div>
-                              <div className="text-[10px] text-gray-400">{lang === 'ar' ? 'صافي أرباحك:' : 'Net Earning:'}</div>
-                              <span className="font-black text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-lg text-xs inline-block">
-                                +${item.net_vendor_amount.toFixed(2)} USD
-                              </span>
-                            </div>
+                {/* Orders Content */}
+                {(() => {
+                  const filteredOrders = orders.filter((o) => {
+                    if (orderFilter === 'pending_verification') return o.status === 'pending_verification';
+                    if (orderFilter === 'completed') return o.status === 'completed' || o.status === 'paid' || o.status === 'delivered';
+                    return true;
+                  });
 
-                            <div className="w-1/2">
-                              <select
-                                value={item.status}
-                                disabled={orderUpdatingId === item.id}
-                                onChange={(e) =>
-                                  handleUpdateOrderStatus(
-                                    item.id,
-                                    e.target.value as 'paid' | 'processing' | 'shipped' | 'delivered'
-                                  )
-                                }
-                                className="w-full text-xs font-bold border border-gray-300 rounded-xl px-2.5 py-2 bg-white text-gray-800 focus:ring-1 focus:ring-amber-500 cursor-pointer"
-                              >
-                                <option value="paid">{lang === 'ar' ? 'مدفوع - جديد' : 'Paid - New'}</option>
-                                <option value="processing">{lang === 'ar' ? 'قيد التجهيز' : 'Processing'}</option>
-                                <option value="shipped">{lang === 'ar' ? 'تم التسليم للشحن' : 'Shipped'}</option>
-                                <option value="delivered">{lang === 'ar' ? 'تم التسليم للعميل' : 'Delivered'}</option>
-                              </select>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                  if (filteredOrders.length === 0) {
+                    return (
+                      <div className="bg-white rounded-2xl border border-dashed border-gray-300 p-8 sm:p-12 text-center space-y-3">
+                        <ShoppingBag className="w-12 h-12 text-gray-300 mx-auto" />
+                        <h3 className="text-sm font-bold text-gray-700">
+                          {lang === 'ar' ? 'لا توجد طلبات في هذا التصنيف' : 'No orders in this view'}
+                        </h3>
+                        <p className="text-xs text-gray-400">
+                          {lang === 'ar'
+                            ? 'ستظهر هنا طلبات الشراء الواردة فور قيام المشتري بإدخال رقم إشعار الحوالة.'
+                            : 'Incoming remittance orders will appear here once submitted by buyers.'}
+                        </p>
+                      </div>
+                    );
+                  }
 
-                    {/* Desktop Table View (md and above) */}
-                    <div className="hidden md:block bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-xs">
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-xs text-start">
-                          <thead className="text-[11px] uppercase bg-gray-50 text-gray-500 font-bold border-b border-gray-100">
-                            <tr>
-                              <th className="py-3.5 px-4">{lang === 'ar' ? 'رقم الطلب' : 'Order #'}</th>
-                              <th className="py-3.5 px-4">{lang === 'ar' ? 'المنتج والكمية' : 'Product & Qty'}</th>
-                              <th className="py-3.5 px-4">{lang === 'ar' ? 'بيانات المستلم والتوصيل' : 'Customer & Delivery'}</th>
-                              <th className="py-3.5 px-4">{lang === 'ar' ? 'الإجمالي والعمولة' : 'Pricing & Fee'}</th>
-                              <th className="py-3.5 px-4">{lang === 'ar' ? 'صافي أرباحك' : 'Net Earning'}</th>
-                              <th className="py-3.5 px-4">{lang === 'ar' ? 'حالة التجهيز' : 'Status'}</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-100">
-                            {orders.map((item) => (
-                              <tr key={item.id} className="hover:bg-gray-50/50">
-                                <td className="py-3.5 px-4">
-                                  <span className="font-mono font-bold text-gray-900 bg-slate-100 px-2 py-0.5 rounded text-[11px]">
+                  return (
+                    <>
+                      {/* Mobile-Friendly Cards View (Under md) */}
+                      <div className="block md:hidden space-y-3.5">
+                        {filteredOrders.map((item) => {
+                          const methodInfo = getMethodBadge(item.payment_method);
+                          const isPending = item.status === 'pending_verification';
+
+                          return (
+                            <div
+                              key={item.id}
+                              className={`bg-white rounded-2xl border p-4 shadow-xs space-y-3 transition-all ${
+                                isPending
+                                  ? 'border-amber-300 ring-2 ring-amber-500/10'
+                                  : 'border-gray-200'
+                              }`}
+                            >
+                              {/* Top Bar */}
+                              <div className="flex items-center justify-between border-b border-gray-100 pb-2.5">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-mono font-bold text-gray-900 bg-slate-100 px-2 py-0.5 rounded text-xs">
                                     {item.order_number}
                                   </span>
-                                  <div className="text-[10px] text-gray-400 mt-1">
-                                    {new Date(item.created_at).toLocaleDateString(lang === 'ar' ? 'ar-SY' : 'en-US')}
-                                  </div>
-                                </td>
-
-                                <td className="py-3.5 px-4">
-                                  <div className="font-bold text-gray-900">{item.product_title}</div>
-                                  <div className="text-gray-500 text-[11px]">
-                                    {lang === 'ar' ? 'الكمية:' : 'Qty:'} {item.quantity} × ${item.unit_price} USD
-                                  </div>
-                                </td>
-
-                                <td className="py-3.5 px-4">
-                                  <div className="font-bold text-gray-900">{item.customer_name}</div>
-                                  {item.customer_phone && (
-                                    <div className="text-gray-500 flex items-center gap-1 font-mono text-[11px]">
-                                      <Phone className="w-3 h-3 text-emerald-600" />
-                                      <span dir="ltr">{item.customer_phone}</span>
-                                    </div>
-                                  )}
-                                  <div className="text-gray-400 text-[11px] truncate max-w-[200px]">
-                                    {item.delivery_address || 'دمشق'}
-                                  </div>
-                                </td>
-
-                                <td className="py-3.5 px-4">
-                                  <div className="font-semibold text-gray-900">${item.total_price.toFixed(2)} USD</div>
-                                  <div className="text-rose-600 text-[10px]">
-                                    {lang === 'ar' ? 'عمولة المنصة:' : 'Fee (10%):'} -${item.platform_fee.toFixed(2)}
-                                  </div>
-                                </td>
-
-                                <td className="py-3.5 px-4">
-                                  <span className="font-black text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg text-xs">
-                                    +${item.net_vendor_amount.toFixed(2)} USD
-                                  </span>
-                                </td>
-
-                                <td className="py-3.5 px-4">
-                                  <select
-                                    value={item.status}
-                                    disabled={orderUpdatingId === item.id}
-                                    onChange={(e) =>
-                                      handleUpdateOrderStatus(
-                                        item.id,
-                                        e.target.value as 'paid' | 'processing' | 'shipped' | 'delivered'
-                                      )
-                                    }
-                                    className="text-xs font-bold border border-gray-300 rounded-lg px-2 py-1 bg-white text-gray-800 focus:ring-1 focus:ring-amber-500 cursor-pointer"
+                                  <span
+                                    className={`text-[10px] font-bold px-2 py-0.5 rounded border ${methodInfo.color}`}
                                   >
-                                    <option value="paid">{lang === 'ar' ? 'مدفوع - جديد' : 'Paid - New'}</option>
-                                    <option value="processing">{lang === 'ar' ? 'قيد التجهيز والتغليف' : 'Processing'}</option>
-                                    <option value="shipped">{lang === 'ar' ? 'تم التسليم للشحن' : 'Shipped'}</option>
-                                    <option value="delivered">{lang === 'ar' ? 'تم التسليم للعميل' : 'Delivered'}</option>
-                                  </select>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                                    {methodInfo.label}
+                                  </span>
+                                </div>
+                                <span className="text-[10px] text-gray-400">
+                                  {new Date(item.created_at).toLocaleDateString(
+                                    lang === 'ar' ? 'ar-SY' : 'en-US'
+                                  )}
+                                </span>
+                              </div>
+
+                              {/* Highlighted Receipt Number Box */}
+                              <div className="p-3 rounded-xl bg-amber-50/70 border border-amber-200 space-y-1.5">
+                                <div className="text-[10px] font-bold text-amber-800 uppercase tracking-wider flex items-center justify-between">
+                                  <span className="flex items-center gap-1">
+                                    <FileText className="w-3.5 h-3.5 text-amber-600" />
+                                    {lang === 'ar' ? 'رقم إيصال الحوالة المسجل:' : 'Transfer Receipt Number:'}
+                                  </span>
+                                  {isPending && (
+                                    <span className="text-[10px] bg-amber-200 text-amber-900 px-1.5 py-0.2 rounded font-bold">
+                                      {lang === 'ar' ? 'بانتظار التأكيد' : 'Verify Now'}
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div className="flex items-center justify-between gap-2 pt-0.5">
+                                  <span
+                                    className="font-mono text-sm sm:text-base font-black text-gray-900 bg-white px-2.5 py-1 rounded-lg border border-amber-200 select-all"
+                                    dir="ltr"
+                                  >
+                                    {item.receipt_number || 'غير مسجل'}
+                                  </span>
+                                  {item.receipt_number && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleCopyReceipt(item.receipt_number!, item.id)}
+                                      className="px-2.5 py-1 rounded-lg text-xs font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 transition flex items-center gap-1 cursor-pointer shrink-0"
+                                    >
+                                      {copiedReceiptId === item.id ? (
+                                        <>
+                                          <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                          <span className="text-emerald-700">{lang === 'ar' ? 'تم النسخ' : 'Copied'}</span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Copy className="w-3.5 h-3.5" />
+                                          <span>{lang === 'ar' ? 'نسخ' : 'Copy'}</span>
+                                        </>
+                                      )}
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Product & Price */}
+                              <div className="space-y-1">
+                                <h4 className="font-bold text-gray-900 text-sm">{item.product_title}</h4>
+                                <div className="text-gray-500 text-xs flex items-center justify-between">
+                                  <span>
+                                    {lang === 'ar' ? 'الكمية:' : 'Qty:'} <span className="font-bold text-gray-800">{item.quantity}</span> × ${item.unit_price} USD
+                                  </span>
+                                  <span className="font-black text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-lg text-xs">
+                                    {lang === 'ar' ? 'صافي الحساب:' : 'Net:'} ${item.net_vendor_amount.toFixed(2)} USD
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Customer and Recipient Info */}
+                              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 space-y-1 text-xs">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-gray-500">{lang === 'ar' ? 'المشتري (المغترب):' : 'Buyer:'}</span>
+                                  <span className="font-bold text-gray-800">{item.customer_name}</span>
+                                </div>
+
+                                <div className="flex items-center justify-between">
+                                  <span className="text-gray-500">{lang === 'ar' ? 'المستلم في سوريا:' : 'Recipient:'}</span>
+                                  <span className="font-bold text-emerald-800">{item.recipient_name || item.customer_name}</span>
+                                </div>
+
+                                {item.recipient_phone && (
+                                  <div className="flex items-center justify-between pt-0.5">
+                                    <span className="text-gray-500">{lang === 'ar' ? 'هاتف المستلم:' : 'Phone:'}</span>
+                                    <div className="flex items-center gap-2">
+                                      <a
+                                        href={`tel:${item.recipient_phone}`}
+                                        className="text-emerald-700 flex items-center gap-1 font-mono text-xs font-bold hover:underline"
+                                      >
+                                        <Phone className="w-3 h-3 text-emerald-600" />
+                                        <span dir="ltr">{item.recipient_phone}</span>
+                                      </a>
+                                      <a
+                                        href={`https://wa.me/${item.recipient_phone.replace(/[^0-9]/g, '')}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-[10px] text-emerald-700 font-bold bg-emerald-100 px-1.5 py-0.5 rounded hover:bg-emerald-200"
+                                      >
+                                        واتساب
+                                      </a>
+                                    </div>
+                                  </div>
+                                )}
+
+                                <div className="text-gray-500 text-[11px] truncate pt-0.5">
+                                  <span className="text-gray-400">{lang === 'ar' ? 'العنوان: ' : 'Address: '}</span>
+                                  {item.delivery_address || 'دمشق'}
+                                </div>
+                              </div>
+
+                              {/* Action Buttons for Mobile */}
+                              <div className="pt-1 space-y-2">
+                                {isPending ? (
+                                  <button
+                                    type="button"
+                                    disabled={orderUpdatingId === item.id}
+                                    onClick={() => handleUpdateOrderStatus(item.id, 'completed')}
+                                    className="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs flex items-center justify-center gap-1.5 transition cursor-pointer shadow-sm"
+                                  >
+                                    <CheckCircle2 className="w-4 h-4" />
+                                    <span>{lang === 'ar' ? 'تأكيد استلام الحوالة وإكمال الطلب' : 'Verify Receipt & Complete'}</span>
+                                  </button>
+                                ) : (
+                                  <div className="flex items-center justify-between text-xs">
+                                    <span className="text-emerald-700 font-bold bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 flex items-center gap-1">
+                                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                      {lang === 'ar' ? 'تم استلام الحوالة وتنفيذ الطلب' : 'Completed & Dispatched'}
+                                    </span>
+
+                                    <select
+                                      value={item.status}
+                                      disabled={orderUpdatingId === item.id}
+                                      onChange={(e) =>
+                                        handleUpdateOrderStatus(
+                                          item.id,
+                                          e.target.value as any
+                                        )
+                                      }
+                                      className="text-xs font-bold border border-gray-300 rounded-lg px-2 py-1 bg-white text-gray-800 cursor-pointer"
+                                    >
+                                      <option value="completed">{lang === 'ar' ? 'مكتمل' : 'Completed'}</option>
+                                      <option value="processing">{lang === 'ar' ? 'قيد التجهيز' : 'Processing'}</option>
+                                      <option value="delivered">{lang === 'ar' ? 'تم التسليم للأهل' : 'Delivered'}</option>
+                                    </select>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
-                    </div>
-                  </>
-                )}
+
+                      {/* Desktop Table View (md and above) */}
+                      <div className="hidden md:block bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-xs">
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-xs text-start">
+                            <thead className="text-[11px] uppercase bg-gray-50 text-gray-500 font-bold border-b border-gray-100">
+                              <tr>
+                                <th className="py-3.5 px-4">{lang === 'ar' ? 'رقم الطلب والتاريخ' : 'Order & Date'}</th>
+                                <th className="py-3.5 px-4">{lang === 'ar' ? 'طريقة التحويل وإيصال الحوالة' : 'Remittance & Receipt #'}</th>
+                                <th className="py-3.5 px-4">{lang === 'ar' ? 'المنتج والكمية' : 'Product & Qty'}</th>
+                                <th className="py-3.5 px-4">{lang === 'ar' ? 'بيانات المستلم في سوريا' : 'Recipient & Delivery'}</th>
+                                <th className="py-3.5 px-4">{lang === 'ar' ? 'صافي الحساب' : 'Net Amount'}</th>
+                                <th className="py-3.5 px-4">{lang === 'ar' ? 'إجراء التحقق والحالة' : 'Action & Status'}</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100">
+                              {filteredOrders.map((item) => {
+                                const methodInfo = getMethodBadge(item.payment_method);
+                                const isPending = item.status === 'pending_verification';
+
+                                return (
+                                  <tr
+                                    key={item.id}
+                                    className={`hover:bg-gray-50/50 transition-colors ${
+                                      isPending ? 'bg-amber-50/20' : ''
+                                    }`}
+                                  >
+                                    {/* Order Number */}
+                                    <td className="py-3.5 px-4">
+                                      <span className="font-mono font-bold text-gray-900 bg-slate-100 px-2 py-0.5 rounded text-[11px]">
+                                        {item.order_number}
+                                      </span>
+                                      <div className="text-[10px] text-gray-400 mt-1">
+                                        {new Date(item.created_at).toLocaleDateString(
+                                          lang === 'ar' ? 'ar-SY' : 'en-US'
+                                        )}
+                                      </div>
+                                    </td>
+
+                                    {/* Remittance & Receipt Number Box */}
+                                    <td className="py-3.5 px-4">
+                                      <div className="space-y-1">
+                                        <span
+                                          className={`text-[10px] font-bold px-2 py-0.5 rounded border inline-block ${methodInfo.color}`}
+                                        >
+                                          {methodInfo.label}
+                                        </span>
+
+                                        <div className="flex items-center gap-1.5">
+                                          <span
+                                            className="font-mono font-black text-xs text-gray-900 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 select-all"
+                                            dir="ltr"
+                                          >
+                                            {item.receipt_number || 'غير مسجل'}
+                                          </span>
+                                          {item.receipt_number && (
+                                            <button
+                                              type="button"
+                                              onClick={() => handleCopyReceipt(item.receipt_number!, item.id)}
+                                              className="p-1 rounded text-gray-500 hover:text-emerald-700 hover:bg-emerald-50 transition cursor-pointer"
+                                              title="نسخ رقم الإيصال"
+                                            >
+                                              {copiedReceiptId === item.id ? (
+                                                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                              ) : (
+                                                <Copy className="w-3.5 h-3.5" />
+                                              )}
+                                            </button>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </td>
+
+                                    {/* Product and Qty */}
+                                    <td className="py-3.5 px-4">
+                                      <div className="font-bold text-gray-900">{item.product_title}</div>
+                                      <div className="text-gray-500 text-[11px]">
+                                        {lang === 'ar' ? 'الكمية:' : 'Qty:'} {item.quantity} × ${item.unit_price} USD
+                                      </div>
+                                    </td>
+
+                                    {/* Recipient Details */}
+                                    <td className="py-3.5 px-4">
+                                      <div className="font-bold text-emerald-800">
+                                        {item.recipient_name || item.customer_name}
+                                      </div>
+                                      <div className="text-[10px] text-gray-400">
+                                        {lang === 'ar' ? 'المشتري:' : 'Buyer:'} {item.customer_name}
+                                      </div>
+                                      {item.recipient_phone && (
+                                        <div className="text-gray-500 flex items-center gap-2 font-mono text-[11px] mt-0.5">
+                                          <a
+                                            href={`tel:${item.recipient_phone}`}
+                                            className="hover:text-emerald-700 flex items-center gap-0.5"
+                                          >
+                                            <Phone className="w-3 h-3 text-emerald-600" />
+                                            <span dir="ltr">{item.recipient_phone}</span>
+                                          </a>
+                                          <a
+                                            href={`https://wa.me/${item.recipient_phone.replace(/[^0-9]/g, '')}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-[9px] text-emerald-700 font-bold bg-emerald-50 px-1 py-0.2 rounded hover:bg-emerald-100"
+                                          >
+                                            واتساب
+                                          </a>
+                                        </div>
+                                      )}
+                                      <div className="text-gray-400 text-[10px] truncate max-w-[180px] mt-0.5">
+                                        {item.delivery_address || 'دمشق'}
+                                      </div>
+                                    </td>
+
+                                    {/* Net Earnings */}
+                                    <td className="py-3.5 px-4">
+                                      <span className="font-black text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg text-xs">
+                                        +${item.net_vendor_amount.toFixed(2)} USD
+                                      </span>
+                                    </td>
+
+                                    {/* Verification & Status */}
+                                    <td className="py-3.5 px-4">
+                                      {isPending ? (
+                                        <button
+                                          type="button"
+                                          disabled={orderUpdatingId === item.id}
+                                          onClick={() => handleUpdateOrderStatus(item.id, 'completed')}
+                                          className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs whitespace-nowrap"
+                                        >
+                                          <CheckCircle2 className="w-3.5 h-3.5" />
+                                          <span>{lang === 'ar' ? 'تأكيد الحوالة وإكمال' : 'Verify & Complete'}</span>
+                                        </button>
+                                      ) : (
+                                        <div className="space-y-1">
+                                          <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 inline-flex items-center gap-1">
+                                            <Check className="w-3 h-3" />
+                                            {lang === 'ar' ? 'تم استلام الحوالة' : 'Verified'}
+                                          </span>
+
+                                          <div>
+                                            <select
+                                              value={item.status}
+                                              disabled={orderUpdatingId === item.id}
+                                              onChange={(e) =>
+                                                handleUpdateOrderStatus(
+                                                  item.id,
+                                                  e.target.value as any
+                                                )
+                                              }
+                                              className="text-[11px] font-bold border border-gray-300 rounded px-1.5 py-0.5 bg-white text-gray-700 cursor-pointer"
+                                            >
+                                              <option value="completed">{lang === 'ar' ? 'مكتمل' : 'Completed'}</option>
+                                              <option value="processing">{lang === 'ar' ? 'قيد التجهيز' : 'Processing'}</option>
+                                              <option value="delivered">{lang === 'ar' ? 'تم التسليم' : 'Delivered'}</option>
+                                            </select>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
             )}
 
