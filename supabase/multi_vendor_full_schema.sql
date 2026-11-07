@@ -1,9 +1,9 @@
 -- ==============================================================================
--- SANAD MULTI-VENDOR MARKETPLACE: COMPLETE SUPABASE SQL SCHEMA
--- 100% Bulletproof Execution Order & Type Safe
+-- SANAD MULTI-VENDOR MARKETPLACE: 100% BULLETPROOF SUPABASE SQL SCHEMA
+-- Auto-migrates existing tables and ensures ALL columns exist before policies
 -- ==============================================================================
 
--- 1. Safely drop any legacy user_role enum if it existed with old values
+-- 1. Safely drop any legacy user_role enum if it existed with old conflicting values
 DO $$ BEGIN
     DROP TYPE IF EXISTS user_role CASCADE;
     CREATE TYPE user_role AS ENUM ('admin', 'vendor', 'customer');
@@ -12,10 +12,10 @@ EXCEPTION WHEN OTHERS THEN
 END $$;
 
 -- ==============================================================================
--- 2. CREATE ALL TABLES FIRST
+-- 2. CREATE ALL TABLES (IF NOT EXIST)
 -- ==============================================================================
 
--- 2.1 Profiles Table (Using TEXT with CHECK constraint to prevent any enum mismatch)
+-- 2.1 Profiles Table
 CREATE TABLE IF NOT EXISTS public.profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     email TEXT NOT NULL,
@@ -28,13 +28,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Ensure columns exist if table was already created
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'customer';
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS store_name TEXT;
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS city TEXT;
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS phone TEXT;
-
--- 2.2 Products Table (with Vendor ID & GPS Coordinates)
+-- 2.2 Products Table
 CREATE TABLE IF NOT EXISTS public.products (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     vendor_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -55,28 +49,25 @@ CREATE TABLE IF NOT EXISTS public.products (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-ALTER TABLE public.products ADD COLUMN IF NOT EXISTS latitude NUMERIC(9, 6);
-ALTER TABLE public.products ADD COLUMN IF NOT EXISTS longitude NUMERIC(9, 6);
-ALTER TABLE public.products ADD COLUMN IF NOT EXISTS location_name TEXT;
-
 -- 2.3 Orders Table
 CREATE TABLE IF NOT EXISTS public.orders (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     order_number TEXT UNIQUE NOT NULL,
     customer_id UUID REFERENCES public.profiles(id),
+    user_id UUID,
     customer_name TEXT NOT NULL,
     customer_email TEXT NOT NULL,
     customer_phone TEXT,
     delivery_address TEXT,
     city TEXT,
-    total_amount NUMERIC(10, 2) NOT NULL,
+    total_amount NUMERIC(10, 2) NOT NULL DEFAULT 0,
     payment_status TEXT NOT NULL DEFAULT 'paid',
     payment_gateway TEXT DEFAULT 'lemon_squeezy',
     lemon_order_id TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 2.4 Order Items Table (Direct Vendor Attribution)
+-- 2.4 Order Items Table
 CREATE TABLE IF NOT EXISTS public.order_items (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     order_id UUID REFERENCES public.orders(id) ON DELETE CASCADE,
@@ -85,20 +76,20 @@ CREATE TABLE IF NOT EXISTS public.order_items (
     vendor_id UUID REFERENCES public.profiles(id) NOT NULL,
     product_title TEXT NOT NULL,
     customer_name TEXT NOT NULL,
-    customer_email TEXT NOT NULL,
+    customer_email TEXT,
     customer_phone TEXT,
     delivery_address TEXT,
     city TEXT,
     quantity INTEGER NOT NULL DEFAULT 1,
-    unit_price NUMERIC(10, 2) NOT NULL,
-    total_price NUMERIC(10, 2) NOT NULL,
-    platform_fee NUMERIC(10, 2) NOT NULL,
-    net_vendor_amount NUMERIC(10, 2) NOT NULL,
+    unit_price NUMERIC(10, 2) NOT NULL DEFAULT 0,
+    total_price NUMERIC(10, 2) NOT NULL DEFAULT 0,
+    platform_fee NUMERIC(10, 2) NOT NULL DEFAULT 0,
+    net_vendor_amount NUMERIC(10, 2) NOT NULL DEFAULT 0,
     status TEXT NOT NULL DEFAULT 'paid',
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 2.5 Vendor Syrian Payout Methods Table
+-- 2.5 Vendor Payout Methods Table
 CREATE TABLE IF NOT EXISTS public.vendor_payout_methods (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     vendor_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
@@ -111,11 +102,11 @@ CREATE TABLE IF NOT EXISTS public.vendor_payout_methods (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 2.6 Withdrawals Ledger Table
+-- 2.6 Withdrawals Table
 CREATE TABLE IF NOT EXISTS public.withdrawals (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     vendor_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
-    amount NUMERIC(10, 2) NOT NULL,
+    amount NUMERIC(10, 2) NOT NULL DEFAULT 0,
     status TEXT NOT NULL DEFAULT 'pending',
     payout_method_id UUID REFERENCES public.vendor_payout_methods(id),
     transaction_ref TEXT,
@@ -126,7 +117,46 @@ CREATE TABLE IF NOT EXISTS public.withdrawals (
 );
 
 -- ==============================================================================
--- 3. AUTOMATIC PROFILE CREATION TRIGGER (ON SIGNUP)
+-- 3. ENSURE ALL COLUMNS EXIST ON PRE-EXISTING TABLES (MIGRATION SAFEGUARD)
+-- ==============================================================================
+-- Profiles columns
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'customer';
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS store_name TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS city TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS phone TEXT;
+
+-- Products columns
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS vendor_id UUID REFERENCES public.profiles(id);
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS latitude NUMERIC(9, 6);
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS longitude NUMERIC(9, 6);
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS location_name TEXT;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
+
+-- Orders columns (Safeguard for customer_id & user_id)
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS customer_id UUID;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS user_id UUID;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS order_number TEXT;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS customer_name TEXT;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS customer_email TEXT;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS delivery_address TEXT;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS city TEXT;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS total_amount NUMERIC(10, 2) DEFAULT 0;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS payment_status TEXT DEFAULT 'paid';
+
+-- Order items columns
+ALTER TABLE public.order_items ADD COLUMN IF NOT EXISTS vendor_id UUID;
+ALTER TABLE public.order_items ADD COLUMN IF NOT EXISTS total_price NUMERIC(10, 2) DEFAULT 0;
+ALTER TABLE public.order_items ADD COLUMN IF NOT EXISTS platform_fee NUMERIC(10, 2) DEFAULT 0;
+ALTER TABLE public.order_items ADD COLUMN IF NOT EXISTS net_vendor_amount NUMERIC(10, 2) DEFAULT 0;
+ALTER TABLE public.order_items ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'paid';
+
+-- Withdrawals columns
+ALTER TABLE public.withdrawals ADD COLUMN IF NOT EXISTS vendor_id UUID;
+ALTER TABLE public.withdrawals ADD COLUMN IF NOT EXISTS amount NUMERIC(10, 2) DEFAULT 0;
+ALTER TABLE public.withdrawals ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'pending';
+
+-- ==============================================================================
+-- 4. PROFILE CREATION TRIGGER (ON SIGNUP)
 -- ==============================================================================
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$
@@ -151,7 +181,7 @@ CREATE TRIGGER on_auth_user_created
   FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
 
 -- ==============================================================================
--- 4. ENABLE ROW LEVEL SECURITY (RLS) ON ALL TABLES
+-- 5. ENABLE ROW LEVEL SECURITY (RLS) ON ALL TABLES
 -- ==============================================================================
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
@@ -161,10 +191,10 @@ ALTER TABLE public.vendor_payout_methods ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.withdrawals ENABLE ROW LEVEL SECURITY;
 
 -- ==============================================================================
--- 5. ROW LEVEL SECURITY (RLS) POLICIES
+-- 6. ROW LEVEL SECURITY (RLS) POLICIES
 -- ==============================================================================
 
--- 5.1 Profiles Policies
+-- 6.1 Profiles Policies
 DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON public.profiles;
 CREATE POLICY "Public profiles are viewable by everyone" 
 ON public.profiles FOR SELECT USING (true);
@@ -173,7 +203,7 @@ DROP POLICY IF EXISTS "Users can update their own profile" ON public.profiles;
 CREATE POLICY "Users can update their own profile" 
 ON public.profiles FOR UPDATE USING (auth.uid() = id);
 
--- 5.2 Products Policies
+-- 6.2 Products Policies
 DROP POLICY IF EXISTS "Active products viewable by everyone" ON public.products;
 CREATE POLICY "Active products viewable by everyone" 
 ON public.products FOR SELECT 
@@ -208,16 +238,17 @@ USING (
     EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
 );
 
--- 5.3 Orders Policies
+-- 6.3 Orders Policies (Supports both customer_id and legacy user_id)
 DROP POLICY IF EXISTS "Customers can view own orders" ON public.orders;
 CREATE POLICY "Customers can view own orders" 
 ON public.orders FOR SELECT 
 USING (
-    auth.uid() = customer_id OR
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+    auth.uid() = customer_id 
+    OR auth.uid() = user_id
+    OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
 );
 
--- 5.4 Order Items Policies
+-- 6.4 Order Items Policies
 DROP POLICY IF EXISTS "Vendors can view own order items" ON public.order_items;
 CREATE POLICY "Vendors can view own order items" 
 ON public.order_items FOR SELECT 
@@ -234,7 +265,7 @@ USING (
     EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
 );
 
--- 5.5 Vendor Payout Methods Policies
+-- 6.5 Vendor Payout Methods Policies
 DROP POLICY IF EXISTS "Vendors can view own payout methods" ON public.vendor_payout_methods;
 CREATE POLICY "Vendors can view own payout methods" 
 ON public.vendor_payout_methods FOR SELECT 
@@ -261,7 +292,7 @@ CREATE POLICY "Vendors can delete own payout methods"
 ON public.vendor_payout_methods FOR DELETE 
 USING (auth.uid() = vendor_id);
 
--- 5.6 Withdrawals Policies
+-- 6.6 Withdrawals Policies
 DROP POLICY IF EXISTS "Vendors can view own withdrawals" ON public.withdrawals;
 CREATE POLICY "Vendors can view own withdrawals" 
 ON public.withdrawals FOR SELECT 
@@ -293,7 +324,7 @@ USING (
 );
 
 -- ==============================================================================
--- 6. HELPER VIEW: VENDOR WALLET BALANCES
+-- 7. HELPER VIEW: VENDOR WALLET BALANCES
 -- ==============================================================================
 CREATE OR REPLACE VIEW public.vendor_wallet_balances AS
 SELECT 
