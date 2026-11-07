@@ -6,8 +6,26 @@ export interface UserProfile {
   full_name: string;
   role: UserRole;
   store_name?: string;
+  logo_url?: string;
   city?: string;
   phone?: string;
+  latitude?: number;
+  longitude?: number;
+  location_name?: string;
+  created_at: string;
+}
+
+export interface DeliveryAddress {
+  id: string;
+  user_id: string;
+  title: string;
+  recipient_name: string;
+  recipient_phone: string;
+  city: string;
+  street_address: string;
+  latitude?: number;
+  longitude?: number;
+  is_default: boolean;
   created_at: string;
 }
 

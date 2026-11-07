@@ -116,14 +116,33 @@ CREATE TABLE IF NOT EXISTS public.withdrawals (
     settled_by UUID REFERENCES public.profiles(id)
 );
 
+-- 2.7 Customer Delivery Addresses Table
+CREATE TABLE IF NOT EXISTS public.delivery_addresses (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+    title TEXT NOT NULL, -- e.g. 'بيت الأهل - دمشق', 'منزل العائلة - حلب'
+    recipient_name TEXT NOT NULL,
+    recipient_phone TEXT NOT NULL,
+    city TEXT NOT NULL,
+    street_address TEXT NOT NULL,
+    latitude NUMERIC(9, 6),
+    longitude NUMERIC(9, 6),
+    is_default BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- ==============================================================================
 -- 3. ENSURE ALL COLUMNS EXIST ON PRE-EXISTING TABLES (MIGRATION SAFEGUARD)
 -- ==============================================================================
 -- Profiles columns
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'customer';
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS store_name TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS logo_url TEXT;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS city TEXT;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS latitude NUMERIC(9, 6);
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS longitude NUMERIC(9, 6);
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS location_name TEXT;
 
 -- Products columns
 ALTER TABLE public.products ADD COLUMN IF NOT EXISTS vendor_id UUID REFERENCES public.profiles(id);
@@ -189,6 +208,7 @@ ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.order_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.vendor_payout_methods ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.withdrawals ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.delivery_addresses ENABLE ROW LEVEL SECURITY;
 
 -- ==============================================================================
 -- 6. ROW LEVEL SECURITY (RLS) POLICIES
@@ -322,6 +342,27 @@ ON public.withdrawals FOR SELECT
 USING (
     EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
 );
+
+-- 6.7 Customer Delivery Addresses Policies
+DROP POLICY IF EXISTS "Users can view own delivery addresses" ON public.delivery_addresses;
+CREATE POLICY "Users can view own delivery addresses" 
+ON public.delivery_addresses FOR SELECT 
+USING (auth.uid() = user_id OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
+
+DROP POLICY IF EXISTS "Users can insert own delivery addresses" ON public.delivery_addresses;
+CREATE POLICY "Users can insert own delivery addresses" 
+ON public.delivery_addresses FOR INSERT 
+WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update own delivery addresses" ON public.delivery_addresses;
+CREATE POLICY "Users can update own delivery addresses" 
+ON public.delivery_addresses FOR UPDATE 
+USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can delete own delivery addresses" ON public.delivery_addresses;
+CREATE POLICY "Users can delete own delivery addresses" 
+ON public.delivery_addresses FOR DELETE 
+USING (auth.uid() = user_id);
 
 -- ==============================================================================
 -- 7. HELPER VIEW: VENDOR WALLET BALANCES
