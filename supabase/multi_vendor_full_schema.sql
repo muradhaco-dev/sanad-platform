@@ -1,17 +1,27 @@
 -- ==============================================================================
--- SANAD MULTI-VENDOR MARKETPLACE: COMPREHENSIVE SUPABASE SCHEMA & RLS
--- Multi-Vendor Architecture: Products with Coordinates, Order Items with Vendor Attribution,
--- Syrian Local Payout Methods (Cham Cash, Al-Haram, Banks), and Vendor Withdrawals Ledger.
+-- SANAD MULTI-VENDOR MARKETPLACE: COMPLETE SUPABASE SQL SCHEMA
+-- Execution Order:
+-- 1. Enums & Types
+-- 2. CREATE TABLE for All Tables (profiles, products, orders, order_items, vendor_payout_methods, withdrawals)
+-- 3. ENABLE ROW LEVEL SECURITY (RLS) on all tables
+-- 4. RLS Security Policies
+-- 5. Wallet View & Calculation Helper
 -- ==============================================================================
 
--- 1. Create User Roles Enum (if not exists)
+-- ==============================================================================
+-- 1. ENUMS & EXTENSIONS
+-- ==============================================================================
 DO $$ BEGIN
     CREATE TYPE user_role AS ENUM ('admin', 'vendor', 'customer');
 EXCEPTION
     WHEN duplicate_object THEN null;
 END $$;
 
--- 2. Profiles Table (Extending Supabase Auth)
+-- ==============================================================================
+-- 2. CREATE TABLES (All tables created FIRST before any RLS or ALTER statements)
+-- ==============================================================================
+
+-- 2.1 Profiles Table
 CREATE TABLE IF NOT EXISTS public.profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     email TEXT NOT NULL,
@@ -24,17 +34,101 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+-- 2.2 Products Table (with Vendor ID & GPS Coordinates)
+CREATE TABLE IF NOT EXISTS public.products (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    vendor_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+    slug TEXT UNIQUE NOT NULL,
+    title_en TEXT NOT NULL,
+    title_ar TEXT NOT NULL,
+    description_en TEXT,
+    description_ar TEXT,
+    price_usd NUMERIC(10, 2) NOT NULL,
+    category TEXT NOT NULL DEFAULT 'food',
+    image_url TEXT,
+    latitude NUMERIC(9, 6),
+    longitude NUMERIC(9, 6),
+    location_name TEXT,
+    stock_status TEXT DEFAULT 'in_stock',
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
 
-DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON public.profiles;
-CREATE POLICY "Public profiles are viewable by everyone" 
-ON public.profiles FOR SELECT USING (true);
+-- Ensure coordinate columns exist if table was already created earlier
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS latitude NUMERIC(9, 6);
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS longitude NUMERIC(9, 6);
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS location_name TEXT;
 
-DROP POLICY IF EXISTS "Users can update their own profile" ON public.profiles;
-CREATE POLICY "Users can update their own profile" 
-ON public.profiles FOR UPDATE USING (auth.uid() = id);
+-- 2.3 Orders Table
+CREATE TABLE IF NOT EXISTS public.orders (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    order_number TEXT UNIQUE NOT NULL,
+    customer_id UUID REFERENCES public.profiles(id),
+    customer_name TEXT NOT NULL,
+    customer_email TEXT NOT NULL,
+    customer_phone TEXT,
+    delivery_address TEXT,
+    city TEXT,
+    total_amount NUMERIC(10, 2) NOT NULL,
+    payment_status TEXT NOT NULL DEFAULT 'paid', -- 'paid', 'pending', 'refunded'
+    payment_gateway TEXT DEFAULT 'lemon_squeezy',
+    lemon_order_id TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
 
--- Trigger to auto-create profile on user signup
+-- 2.4 Order Items Table (Direct Vendor Attribution)
+CREATE TABLE IF NOT EXISTS public.order_items (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    order_id UUID REFERENCES public.orders(id) ON DELETE CASCADE,
+    order_number TEXT NOT NULL,
+    product_id UUID REFERENCES public.products(id),
+    vendor_id UUID REFERENCES public.profiles(id) NOT NULL,
+    product_title TEXT NOT NULL,
+    customer_name TEXT NOT NULL,
+    customer_email TEXT NOT NULL,
+    customer_phone TEXT,
+    delivery_address TEXT,
+    city TEXT,
+    quantity INTEGER NOT NULL DEFAULT 1,
+    unit_price NUMERIC(10, 2) NOT NULL,
+    total_price NUMERIC(10, 2) NOT NULL,
+    platform_fee NUMERIC(10, 2) NOT NULL, -- 10% platform commission
+    net_vendor_amount NUMERIC(10, 2) NOT NULL, -- Gross minus platform fee
+    status TEXT NOT NULL DEFAULT 'paid', -- 'paid', 'processing', 'shipped', 'delivered'
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 2.5 Vendor Syrian Payout Methods Table
+CREATE TABLE IF NOT EXISTS public.vendor_payout_methods (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    vendor_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+    method_name TEXT NOT NULL, -- 'Cham Cash', 'Syriatel Cash', 'Al-Haram', 'Bemo Bank', etc.
+    account_number TEXT NOT NULL,
+    account_holder_name TEXT NOT NULL,
+    phone_number TEXT,
+    notes TEXT,
+    is_default BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 2.6 Withdrawals Ledger Table
+CREATE TABLE IF NOT EXISTS public.withdrawals (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    vendor_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+    amount NUMERIC(10, 2) NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending', -- 'pending', 'paid', 'rejected'
+    payout_method_id UUID REFERENCES public.vendor_payout_methods(id),
+    transaction_ref TEXT, -- Local transfer ref (رقم إشعار الحوالة في سوريا)
+    admin_notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    paid_at TIMESTAMPTZ,
+    settled_by UUID REFERENCES public.profiles(id)
+);
+
+-- ==============================================================================
+-- 3. AUTOMATIC PROFILE CREATION TRIGGER (ON SIGNUP)
+-- ==============================================================================
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$
 BEGIN
@@ -57,34 +151,30 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
 
--- 3. Products Table with Vendor ID and Geolocation
-CREATE TABLE IF NOT EXISTS public.products (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    vendor_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
-    slug TEXT UNIQUE NOT NULL,
-    title_en TEXT NOT NULL,
-    title_ar TEXT NOT NULL,
-    description_en TEXT,
-    description_ar TEXT,
-    price_usd NUMERIC(10, 2) NOT NULL,
-    category TEXT NOT NULL DEFAULT 'food',
-    image_url TEXT,
-    latitude NUMERIC(9, 6),
-    longitude NUMERIC(9, 6),
-    location_name TEXT,
-    stock_status TEXT DEFAULT 'in_stock',
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Ensure latitude/longitude columns exist if table was already created
-ALTER TABLE public.products ADD COLUMN IF NOT EXISTS latitude NUMERIC(9, 6);
-ALTER TABLE public.products ADD COLUMN IF NOT EXISTS longitude NUMERIC(9, 6);
-ALTER TABLE public.products ADD COLUMN IF NOT EXISTS location_name TEXT;
-
+-- ==============================================================================
+-- 4. ENABLE ROW LEVEL SECURITY (RLS) ON ALL TABLES
+-- ==============================================================================
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.order_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.vendor_payout_methods ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.withdrawals ENABLE ROW LEVEL SECURITY;
 
+-- ==============================================================================
+-- 5. ROW LEVEL SECURITY (RLS) POLICIES
+-- ==============================================================================
+
+-- 5.1 Profiles Policies
+DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON public.profiles;
+CREATE POLICY "Public profiles are viewable by everyone" 
+ON public.profiles FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Users can update their own profile" ON public.profiles;
+CREATE POLICY "Users can update their own profile" 
+ON public.profiles FOR UPDATE USING (auth.uid() = id);
+
+-- 5.2 Products Policies
 DROP POLICY IF EXISTS "Active products viewable by everyone" ON public.products;
 CREATE POLICY "Active products viewable by everyone" 
 ON public.products FOR SELECT 
@@ -119,25 +209,7 @@ USING (
     EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
 );
 
--- 4. Customer Orders Table
-CREATE TABLE IF NOT EXISTS public.orders (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    order_number TEXT UNIQUE NOT NULL,
-    customer_id UUID REFERENCES public.profiles(id),
-    customer_name TEXT NOT NULL,
-    customer_email TEXT NOT NULL,
-    customer_phone TEXT,
-    delivery_address TEXT,
-    city TEXT,
-    total_amount NUMERIC(10, 2) NOT NULL,
-    payment_status TEXT NOT NULL DEFAULT 'paid', -- 'paid', 'pending', 'refunded'
-    payment_gateway TEXT DEFAULT 'lemon_squeezy',
-    lemon_order_id TEXT,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
-
+-- 5.3 Orders Policies
 DROP POLICY IF EXISTS "Customers can view own orders" ON public.orders;
 CREATE POLICY "Customers can view own orders" 
 ON public.orders FOR SELECT 
@@ -146,30 +218,7 @@ USING (
     EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
 );
 
--- 5. Order Items Table (Direct Vendor Attribution)
-CREATE TABLE IF NOT EXISTS public.order_items (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    order_id UUID REFERENCES public.orders(id) ON DELETE CASCADE,
-    order_number TEXT NOT NULL,
-    product_id UUID REFERENCES public.products(id),
-    vendor_id UUID REFERENCES public.profiles(id) NOT NULL,
-    product_title TEXT NOT NULL,
-    customer_name TEXT NOT NULL,
-    customer_email TEXT NOT NULL,
-    customer_phone TEXT,
-    delivery_address TEXT,
-    city TEXT,
-    quantity INTEGER NOT NULL DEFAULT 1,
-    unit_price NUMERIC(10, 2) NOT NULL,
-    total_price NUMERIC(10, 2) NOT NULL,
-    platform_fee NUMERIC(10, 2) NOT NULL, -- 10% platform commission
-    net_vendor_amount NUMERIC(10, 2) NOT NULL, -- Gross minus platform fee
-    status TEXT NOT NULL DEFAULT 'paid', -- 'paid', 'processing', 'shipped', 'delivered'
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-ALTER TABLE public.order_items ENABLE ROW LEVEL SECURITY;
-
+-- 5.4 Order Items Policies
 DROP POLICY IF EXISTS "Vendors can view own order items" ON public.order_items;
 CREATE POLICY "Vendors can view own order items" 
 ON public.order_items FOR SELECT 
@@ -186,22 +235,7 @@ USING (
     EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
 );
 
--- 6. Vendor Local Syrian Payout Methods
--- Supports Cham Cash, Syriatel Cash, Al-Haram Hawala, and Syrian Commercial Banks
-CREATE TABLE IF NOT EXISTS public.vendor_payout_methods (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    vendor_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
-    method_name TEXT NOT NULL, -- 'Cham Cash', 'Syriatel Cash', 'Al-Haram', 'Bank of Syria and Overseas', 'Bemo Bank'
-    account_number TEXT NOT NULL, -- Wallet ID, Phone Number, or IBAN/Account Number
-    account_holder_name TEXT NOT NULL,
-    phone_number TEXT,
-    notes TEXT,
-    is_default BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-ALTER TABLE public.vendor_payout_methods ENABLE ROW LEVEL SECURITY;
-
+-- 5.5 Vendor Payout Methods Policies
 DROP POLICY IF EXISTS "Vendors can view own payout methods" ON public.vendor_payout_methods;
 CREATE POLICY "Vendors can view own payout methods" 
 ON public.vendor_payout_methods FOR SELECT 
@@ -228,22 +262,7 @@ CREATE POLICY "Vendors can delete own payout methods"
 ON public.vendor_payout_methods FOR DELETE 
 USING (auth.uid() = vendor_id);
 
--- 7. Withdrawals Ledger Table
-CREATE TABLE IF NOT EXISTS public.withdrawals (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    vendor_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
-    amount NUMERIC(10, 2) NOT NULL,
-    status TEXT NOT NULL DEFAULT 'pending', -- 'pending', 'paid', 'rejected'
-    payout_method_id UUID REFERENCES public.vendor_payout_methods(id),
-    transaction_ref TEXT, -- Local transfer ref (رقم إشعار الحوالة في سوريا)
-    admin_notes TEXT,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    paid_at TIMESTAMPTZ,
-    settled_by UUID REFERENCES public.profiles(id)
-);
-
-ALTER TABLE public.withdrawals ENABLE ROW LEVEL SECURITY;
-
+-- 5.6 Withdrawals Policies
 DROP POLICY IF EXISTS "Vendors can view own withdrawals" ON public.withdrawals;
 CREATE POLICY "Vendors can view own withdrawals" 
 ON public.withdrawals FOR SELECT 
@@ -275,7 +294,7 @@ USING (
 );
 
 -- ==============================================================================
--- 8. Helper View: Vendor Balance Calculator
+-- 6. HELPER VIEW: VENDOR WALLET BALANCES
 -- ==============================================================================
 CREATE OR REPLACE VIEW public.vendor_wallet_balances AS
 SELECT 
