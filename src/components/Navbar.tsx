@@ -21,6 +21,7 @@ import {
   MapPin,
   ChevronRight,
   ChevronLeft,
+  Sparkles,
 } from 'lucide-react';
 
 export default function Navbar() {
@@ -184,6 +185,17 @@ export default function Navbar() {
             {t('products')}
           </Link>
 
+          <Link
+            href="/#about"
+            className={`px-3 py-2 rounded-lg transition-colors ${
+              pathname === '/about'
+                ? 'text-emerald-700 bg-emerald-50 font-bold'
+                : 'hover:text-gray-900 hover:bg-gray-50'
+            }`}
+          >
+            {t('aboutUs')}
+          </Link>
+
           {/* STRICT RBAC ENFORCEMENT: ONLY visible to users with 'vendor' role */}
           {user && userRole === 'vendor' && (
             <Link
@@ -217,6 +229,15 @@ export default function Navbar() {
 
         {/* Right Actions: Language Switcher, Prominent Buttons & Hamburger */}
         <div className="flex items-center gap-1.5 sm:gap-2.5">
+          {/* Prominent About Us Button */}
+          <Link
+            href="/#about"
+            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-xs hover:shadow transition"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            <span>{t('aboutUs')}</span>
+          </Link>
+
           {/* Language Toggle Button */}
           <button
             type="button"
@@ -464,6 +485,18 @@ export default function Navbar() {
               }`}
             >
               <span>{t('products')}</span>
+              {lang === 'ar' ? <ChevronLeft className="w-4 h-4 text-gray-400" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
+            </Link>
+
+            <Link
+              href="/#about"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition"
+            >
+              <span className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>{t('aboutUs')}</span>
+              </span>
               {lang === 'ar' ? <ChevronLeft className="w-4 h-4 text-gray-400" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
             </Link>
 

@@ -33,6 +33,7 @@ export const translations = {
     details: 'Product Details',
     specifications: 'Specifications',
     whatsIncluded: "What's Included",
+    aboutUs: 'About Us',
     needHelp: 'Need assistance?',
     contactUs: 'Contact Support',
 
@@ -182,6 +183,7 @@ export const translations = {
     details: 'تفاصيل المنتج',
     specifications: 'المواصفات',
     whatsIncluded: 'المحتويات المشمولة',
+    aboutUs: 'من نحن',
     needHelp: 'هل تحتاج مساعدة؟',
     contactUs: 'تواصل مع الدعم الفني',
 

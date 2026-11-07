@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { STORE_PRODUCTS } from '@/lib/products';
 import LemonCheckoutButton from '@/components/LemonCheckoutButton';
+import AboutUsSection from '@/components/AboutUsSection';
 import {
   ShieldCheck,
   ShoppingBag,
@@ -242,6 +243,9 @@ export default function HomePage() {
           </Link>
         </div>
       </section>
+
+      {/* About Us & Developer Section */}
+      <AboutUsSection />
     </div>
   );
 }
