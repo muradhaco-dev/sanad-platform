@@ -5,10 +5,24 @@ export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');
 
+  let redirectTarget = '/dashboard';
+
   if (code) {
-    await supabase.auth.exchangeCodeForSession(code);
+    try {
+      const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+      if (!error && data?.session?.user) {
+        const user = data.session.user;
+        const role = user.user_metadata?.role;
+        if (role === 'vendor') {
+          redirectTarget = '/vendor';
+        } else if (role === 'admin') {
+          redirectTarget = '/admin';
+        }
+      }
+    } catch (err) {
+      console.error('Error exchanging confirmation code:', err);
+    }
   }
 
-  // URL to redirect to after sign in process completes
-  return NextResponse.redirect(`${requestUrl.origin}/dashboard`);
+  return NextResponse.redirect(`${requestUrl.origin}${redirectTarget}`);
 }

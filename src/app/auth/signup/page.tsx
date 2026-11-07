@@ -4,20 +4,21 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { signUpWithEmail, verifyEmailOtp, signInWithGoogle } from '@/lib/supabaseClient';
+import { signUpWithEmail, signInWithGoogle } from '@/lib/supabaseClient';
 import {
   Mail,
   Lock,
   ArrowRight,
   ShieldCheck,
   Loader2,
-  KeyRound,
   AlertCircle,
   CheckCircle2,
   Store,
   User,
   Zap,
-  Sparkles
+  MailCheck,
+  ExternalLink,
+  RefreshCw,
 } from 'lucide-react';
 
 export default function SignUpPage() {
@@ -31,14 +32,11 @@ export default function SignUpPage() {
   // Form states
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [otpCode, setOtpCode] = useState('');
 
-  // Step 1: 'form' | Step 2: 'otp_verification'
-  const [step, setStep] = useState<'form' | 'otp_verification'>('form');
-
+  // Submission & Success state
+  const [isSubmitted, setIsSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,11 +45,19 @@ export default function SignUpPage() {
 
     try {
       if (password.length < 6) {
-        throw new Error(lang === 'ar' ? 'كلمة المرور يجب أن تكون 6 أحرف على الأقل' : 'Password must be at least 6 characters');
+        throw new Error(
+          lang === 'ar'
+            ? 'كلمة المرور يجب أن تكون 6 أحرف على الأقل'
+            : 'Password must be at least 6 characters'
+        );
       }
 
       if (role === 'vendor' && !storeName.trim()) {
-        throw new Error(lang === 'ar' ? 'يرجى كتابة اسم المتجر أو النشاط التجاري' : 'Please provide a store name');
+        throw new Error(
+          lang === 'ar'
+            ? 'يرجى كتابة اسم المتجر أو النشاط التجاري'
+            : 'Please provide a store name'
+        );
       }
 
       const { data, error } = await signUpWithEmail(email, password, {
@@ -64,44 +70,15 @@ export default function SignUpPage() {
         throw error;
       }
 
-      // Save role locally to redirect properly upon OTP confirmation
-      localStorage.setItem('sanad_signup_role', role);
+      // Save role preference in local storage for callback redirection
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('sanad_signup_role', role);
+      }
 
-      // Transition to OTP verification step
-      setStep('otp_verification');
-      setSuccessMsg(
-        lang === 'ar'
-          ? `تم إرسال رمز التحقق المكون من 6 أرقام إلى: ${email}`
-          : `A 6-digit verification code has been sent to: ${email}`
-      );
+      // Show confirmation screen
+      setIsSubmitted(true);
     } catch (err: any) {
       setErrorMsg(err.message || (lang === 'ar' ? 'فشل إنشاء الحساب' : 'Failed to create account'));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMsg(null);
-    setLoading(true);
-
-    try {
-      const { data, error } = await verifyEmailOtp(email, otpCode.trim());
-
-      if (error) {
-        throw error;
-      }
-
-      // Instant Activation: Vendors redirect to /vendor immediately with zero waiting!
-      const targetRole = localStorage.getItem('sanad_signup_role') || role;
-      if (targetRole === 'vendor') {
-        router.push('/vendor');
-      } else {
-        router.push('/dashboard');
-      }
-    } catch (err: any) {
-      setErrorMsg(t('invalidOtp'));
     } finally {
       setLoading(false);
     }
@@ -120,18 +97,29 @@ export default function SignUpPage() {
       <div className="max-w-md w-full bg-white rounded-3xl p-8 border border-slate-200/80 shadow-xl space-y-6">
         {/* Brand Header */}
         <div className="text-center space-y-1">
-          <Link href="/" className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-emerald-600 text-white font-black text-xl shadow-md shadow-emerald-200 mb-2">
+          <Link
+            href="/"
+            className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-emerald-600 text-white font-black text-xl shadow-md shadow-emerald-200 mb-2"
+          >
             S
           </Link>
           <h2 className="text-2xl font-black text-slate-900 tracking-tight">
-            {step === 'form' ? t('authSignUpTitle') : t('verifyOtpTitle')}
+            {isSubmitted
+              ? lang === 'ar'
+                ? 'تأكيد الحساب عبر البريد'
+                : 'Confirm Your Email'
+              : t('authSignUpTitle')}
           </h2>
           <p className="text-xs text-slate-500">
-            {step === 'form' ? t('authSignUpSubtitle') : t('verifyOtpSubtitle')}
+            {isSubmitted
+              ? lang === 'ar'
+                ? 'تم إرسال رابط التفعيل إلى بريدك الإلكتروني'
+                : 'Activation link has been sent to your email'
+              : t('authSignUpSubtitle')}
           </p>
         </div>
 
-        {/* Alerts */}
+        {/* Error Alert */}
         {errorMsg && (
           <div className="p-3 bg-rose-50 text-rose-700 border border-rose-200 rounded-xl text-xs flex items-center gap-2">
             <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
@@ -139,17 +127,10 @@ export default function SignUpPage() {
           </div>
         )}
 
-        {successMsg && (
-          <div className="p-3 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-xl text-xs flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
-            <span>{successMsg}</span>
-          </div>
-        )}
-
-        {/* Step 1: Initial Form */}
-        {step === 'form' ? (
+        {/* SCREEN 1: SIGNUP FORM */}
+        {!isSubmitted ? (
           <>
-            {/* Dual-Signup Frictionless Role Selector */}
+            {/* Dual-Signup Role Selector */}
             <div className="space-y-1.5">
               <label className="block text-xs font-bold text-slate-700">
                 {lang === 'ar' ? 'نوع الحساب المراد إنشاؤه:' : 'Select Account Type:'}
@@ -174,7 +155,7 @@ export default function SignUpPage() {
                   </span>
                 </button>
 
-                {/* Option 2: Vendor (Instant Activation) */}
+                {/* Option 2: Vendor */}
                 <button
                   type="button"
                   onClick={() => setRole('vendor')}
@@ -188,7 +169,11 @@ export default function SignUpPage() {
                     <Store className="w-4 h-4" />
                     <span>{t('signUpAsVendor')}</span>
                   </div>
-                  <span className={`text-[10px] font-normal text-center ${role === 'vendor' ? 'text-emerald-100' : 'text-slate-500'}`}>
+                  <span
+                    className={`text-[10px] font-normal text-center ${
+                      role === 'vendor' ? 'text-emerald-100' : 'text-slate-500'
+                    }`}
+                  >
                     {t('vendorRoleDesc')}
                   </span>
                 </button>
@@ -299,74 +284,97 @@ export default function SignUpPage() {
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                 <span>
                   {lang === 'ar'
-                    ? 'التحقق برمز البريد (OTP) مطلوب لمنع الحسابات الوهمية'
-                    : 'Mandatory email OTP verification required to prevent spam'}
+                    ? 'سيصلك رابط تأكيد فوري لتفعيل حسابك بأمان'
+                    : 'A secure confirmation link will be emailed to activate your account'}
                 </span>
               </div>
 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-xl text-xs font-bold shadow-md hover:shadow-lg transition flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-xl text-xs font-bold shadow-md hover:shadow-lg transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
               >
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                 <span>
                   {role === 'vendor'
-                    ? (lang === 'ar' ? 'إنشاء حساب المزود وتفعيل المتجر فوراً' : 'Create Vendor Account (Instant Activation)')
+                    ? lang === 'ar'
+                      ? 'إنشاء حساب المزود وتفعيل المتجر فوراً'
+                      : 'Create Vendor Account (Instant Activation)'
                     : t('signUp')}
                 </span>
               </button>
             </form>
           </>
         ) : (
-          /* Step 2: OTP Verification Form */
-          <form onSubmit={handleVerifyOtp} className="space-y-4">
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1 text-center">
-                {lang === 'ar' ? 'رمز التحقق (6 أرقام)' : '6-Digit Verification Code'}
-              </label>
-              <div className="relative">
-                <KeyRound className="w-4 h-4 text-slate-400 absolute top-3 start-3" />
-                <input
-                  type="text"
-                  required
-                  maxLength={6}
-                  value={otpCode}
-                  onChange={(e) => setOtpCode(e.target.value)}
-                  placeholder="123456"
-                  className="w-full text-center tracking-widest text-lg font-mono font-bold border border-slate-200 rounded-xl py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition"
-                />
-              </div>
+          /* SCREEN 2: EMAIL LINK CONFIRMATION SUCCESS MESSAGE */
+          <div className="text-center space-y-5 py-2">
+            <div className="w-16 h-16 rounded-3xl bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto shadow-inner animate-in zoom-in">
+              <MailCheck className="w-8 h-8" />
             </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md hover:shadow-lg transition flex items-center justify-center gap-2 cursor-pointer"
-            >
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-              <span>{t('verifyCodeBtn')}</span>
-            </button>
+            <div className="space-y-2">
+              <h3 className="text-base font-black text-slate-900">
+                {lang === 'ar' ? 'تحقق من بريدك الإلكتروني' : 'Check Your Email'}
+              </h3>
+              <p className="text-xs text-slate-600 leading-relaxed max-w-sm mx-auto font-medium">
+                {lang === 'ar'
+                  ? 'يرجى التحقق من بريدك الإلكتروني والضغط على رابط التأكيد لتفعيل حسابك.'
+                  : 'Please check your email and click the confirmation link to activate your account.'}
+              </p>
+            </div>
 
-            <button
-              type="button"
-              onClick={() => setStep('form')}
-              className="w-full text-center text-xs text-slate-500 hover:text-slate-800 font-semibold"
-            >
-              {lang === 'ar' ? '← العودة لتعديل البيانات' : '← Back to edit details'}
-            </button>
-          </form>
+            {/* Email destination badge */}
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-mono font-bold text-slate-800 break-all">
+              {email}
+            </div>
+
+            {role === 'vendor' && (
+              <div className="p-3 bg-amber-50 text-amber-900 border border-amber-200 rounded-xl text-xs text-start flex items-start gap-2">
+                <Zap className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <span>
+                  {lang === 'ar'
+                    ? 'بمجرد الضغط على الرابط، سيتم تفعيل حسابك كتاجر فوراً وتوجيهك إلى بوابة إضافة المنتجات وإدارة المحفظة.'
+                    : 'Once you click the link, your vendor account is activated immediately with instant store access.'}
+                </span>
+              </div>
+            )}
+
+            <p className="text-[11px] text-slate-400">
+              {lang === 'ar'
+                ? 'لم تجد الرسالة؟ تفقد مجلد الرسائل غير المرغوب فيها (Spam / Junk).'
+                : "Can't find the email? Please check your Spam or Junk folder."}
+            </p>
+
+            <div className="pt-2 flex flex-col gap-2">
+              <Link
+                href="/auth/login"
+                className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition"
+              >
+                {lang === 'ar' ? 'الانتقال لصفحة تسجيل الدخول' : 'Go to Sign In'}
+              </Link>
+
+              <button
+                type="button"
+                onClick={() => setIsSubmitted(false)}
+                className="text-xs text-slate-500 hover:text-slate-800 font-semibold cursor-pointer py-1"
+              >
+                {lang === 'ar' ? '← تغيير البريد الإلكتروني' : '← Change Email Address'}
+              </button>
+            </div>
+          </div>
         )}
 
         {/* Footer Link */}
-        <div className="text-center pt-2 border-t border-slate-100">
-          <Link
-            href="/auth/login"
-            className="text-xs font-bold text-emerald-700 hover:text-emerald-800 hover:underline"
-          >
-            {t('alreadyHaveAccount')}
-          </Link>
-        </div>
+        {!isSubmitted && (
+          <div className="text-center pt-2 border-t border-slate-100">
+            <Link
+              href="/auth/login"
+              className="text-xs font-bold text-emerald-700 hover:text-emerald-800 hover:underline"
+            >
+              {t('alreadyHaveAccount')}
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   );
