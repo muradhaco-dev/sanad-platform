@@ -178,6 +178,8 @@ export default function CheckoutPage() {
       const customerEmail = buyerEmail.trim() || currentUser?.email || 'guest@sanad.ngo';
       const customerName = buyerName.trim() || currentUser?.user_metadata?.full_name || 'مغترب سوري';
 
+      const formattedDeliveryAddress = `المستلم: ${recipientName.trim()} | هاتف: ${recipientPhone.trim()} | المدينة: ${recipientCity} | العنوان: ${recipientAddress.trim()}`;
+
       // 1. Save Main Order to Supabase
       const { data: newOrder, error: orderErr } = await supabase
         .from('orders')
@@ -185,10 +187,10 @@ export default function CheckoutPage() {
           order_number: orderNumber,
           customer_id: currentUser?.id || null,
           user_id: currentUser?.id || null,
-          customer_name: customerName,
+          customer_name: `${customerName} (مرسل للأهل: ${recipientName.trim()})`,
           customer_email: customerEmail,
-          customer_phone: buyerPhone.trim(),
-          delivery_address: recipientAddress.trim(),
+          customer_phone: buyerPhone.trim() || recipientPhone.trim(),
+          delivery_address: formattedDeliveryAddress,
           city: recipientCity,
           total_amount: totalPriceUSD,
           payment_status: 'pending_verification', // Status: Pending Verification as requested
@@ -212,10 +214,10 @@ export default function CheckoutPage() {
         product_id: item.product.id,
         vendor_id: item.product.vendor_id || 'c023d987-5e1c-4bda-ba62-8af979caa15c', // Link to real vendor or default
         product_title: lang === 'ar' ? item.product.title_ar : item.product.title_en || item.product.title_ar,
-        customer_name: customerName,
+        customer_name: `${customerName} (مرسل للأهل: ${recipientName.trim()})`,
         customer_email: customerEmail,
-        customer_phone: buyerPhone.trim() || recipientPhone.trim(),
-        delivery_address: recipientAddress.trim(),
+        customer_phone: recipientPhone.trim() || buyerPhone.trim(),
+        delivery_address: formattedDeliveryAddress,
         city: recipientCity,
         quantity: item.quantity,
         unit_price: item.product.price_usd,

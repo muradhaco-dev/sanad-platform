@@ -17,7 +17,6 @@ import {
   Package,
   ShoppingBag,
   Wallet,
-  ArrowDownToLine,
   Plus,
   Trash2,
   Edit3,
@@ -42,10 +41,10 @@ import {
 export default function VendorDashboardPage() {
   const { t, lang } = useLanguage();
 
-  // 3 Main Sections (Tabs) as required:
+  // 3 Main Sections (Tabs):
   // 1. 'products' -> Products Management (with Price, Description, Images, Map coordinates in Syria)
-  // 2. 'orders' -> Orders Management (items purchased from this specific vendor)
-  // 3. 'wallet' -> Wallet & Withdrawals (Cham Cash, Available Balance, Payout Methods & Requests)
+  // 2. 'orders' -> Direct Expat Remittances & Orders (Receipt Numbers, Beneficiary delivery details, verification)
+  // 3. 'wallet' -> Local Remittance Accounts (Cham Cash, Syriatel, Al-Haram details where expats send money)
   const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'wallet'>('products');
 
   // Auth & RBAC State
@@ -54,8 +53,8 @@ export default function VendorDashboardPage() {
   const [authChecked, setAuthChecked] = useState(false);
 
   // Vendor Information
-  const [vendorId, setVendorId] = useState<string>('vendor-damascus-01');
-  const [vendorName, setVendorName] = useState<string>('مستودعات الشام الغذائية (دمشق)');
+  const [vendorId, setVendorId] = useState<string>('');
+  const [vendorName, setVendorName] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -94,26 +93,26 @@ export default function VendorDashboardPage() {
   const getMethodBadge = (method?: string) => {
     switch (method) {
       case 'al_haram':
+      case 'الهرم للحوالات':
         return { label: lang === 'ar' ? 'الهرم للحوالات' : 'Al-Haram', color: 'bg-blue-100 text-blue-800 border-blue-200' };
       case 'al_fouad':
+      case 'الفؤاد':
         return { label: lang === 'ar' ? 'شركة الفؤاد' : 'Al-Fouad', color: 'bg-purple-100 text-purple-800 border-purple-200' };
       case 'syriatel_cash':
+      case 'سيريتل كاش':
         return { label: lang === 'ar' ? 'سيريتل كاش' : 'Syriatel Cash', color: 'bg-amber-100 text-amber-800 border-amber-200' };
       case 'cham_cash':
+      case 'شام كاش':
       default:
         return { label: lang === 'ar' ? 'شام كاش' : 'Cham Cash', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' };
     }
   };
 
-  // 3. Wallet & Withdrawals (Cham Cash) State
+  // 3. Local Payout Methods (Cham Cash, Syriatel, Al-Haram)
   const [payoutMethods, setPayoutMethods] = useState<VendorPayoutMethod[]>([]);
-  const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([]);
-  const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
-  const [withdrawAmount, setWithdrawAmount] = useState('');
-  const [withdrawMethodId, setWithdrawMethodId] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
 
-  // Inline Cham Cash Quick-Add Form state
+  // Inline Quick-Add Form state for Local Remittance Details
   const [chamCashForm, setChamCashForm] = useState({
     method_name: 'Cham Cash (شام كاش)',
     account_number: '',
@@ -138,7 +137,7 @@ export default function VendorDashboardPage() {
 
         if (user) {
           // Strictly fetch user's actual role from Supabase 'profiles' table
-          const { data: profile, error } = await supabase
+          const { data: profile } = await supabase
             .from('profiles')
             .select('role, full_name, store_name')
             .eq('id', user.id)
@@ -153,6 +152,10 @@ export default function VendorDashboardPage() {
               setVendorName(profile.store_name);
             } else if (profile?.full_name) {
               setVendorName(profile.full_name);
+            } else if (user.email) {
+              setVendorName(user.email.split('@')[0]);
+            } else {
+              setVendorName(lang === 'ar' ? 'متجر البائع' : 'Vendor Store');
             }
           }
         } else {
@@ -166,17 +169,17 @@ export default function VendorDashboardPage() {
     };
 
     checkAuthAndRole();
-  }, []);
+  }, [lang]);
 
   // 2. Fetch all Vendor Data directly from Supabase (Strictly NO fake or mock data)
   const fetchVendorData = async (activeVendorId: string) => {
     setLoading(true);
     try {
-      // 1. Query Products from Supabase directly
+      // 1. Query Products from Supabase directly (strictly for this vendor)
       const { data: dbProducts } = await supabase
         .from('products')
         .select('*')
-        .or(`vendor_id.eq.${activeVendorId},vendor_id.is.null`)
+        .eq('vendor_id', activeVendorId)
         .order('created_at', { ascending: false });
 
       setProducts((dbProducts as any) || []);
@@ -190,7 +193,7 @@ export default function VendorDashboardPage() {
 
       setOrders((dbOrders as any) || []);
 
-      // 3. Query Syrian Payout Methods (Cham Cash)
+      // 3. Query Syrian Remittance Receiving Accounts
       const { data: dbMethods } = await supabase
         .from('vendor_payout_methods')
         .select('*')
@@ -198,18 +201,6 @@ export default function VendorDashboardPage() {
         .order('is_default', { ascending: false });
 
       setPayoutMethods((dbMethods as any) || []);
-      if (dbMethods && dbMethods.length > 0) {
-        setWithdrawMethodId(dbMethods[0].id);
-      }
-
-      // 4. Query Withdrawals History
-      const { data: dbWithdrawals } = await supabase
-        .from('withdrawals')
-        .select('*')
-        .eq('vendor_id', activeVendorId)
-        .order('created_at', { ascending: false });
-
-      setWithdrawals((dbWithdrawals as any) || []);
     } catch (err) {
       console.error('Error loading vendor data from Supabase:', err);
     } finally {
@@ -218,31 +209,21 @@ export default function VendorDashboardPage() {
   };
 
   useEffect(() => {
-    if (authChecked && (userRole === 'vendor' || userRole === 'admin')) {
+    if (authChecked && (userRole === 'vendor' || userRole === 'admin') && vendorId) {
       fetchVendorData(vendorId);
     } else if (authChecked) {
       setLoading(false);
     }
   }, [authChecked, userRole, vendorId]);
 
-  // Financial Calculations for Wallet
+  // Financial Calculations for Direct Remittances
   const totalGrossSales = orders.reduce((sum, item) => sum + (Number(item.total_price) || 0), 0);
-  const totalPlatformFees = orders.reduce((sum, item) => sum + (Number(item.platform_fee) || 0), 0);
   const totalNetEarnings = orders.reduce(
     (sum, item) => sum + (Number(item.net_vendor_amount) || 0),
     0
   );
-  const totalPaidWithdrawals = withdrawals
-    .filter((w) => w.status === 'paid')
-    .reduce((sum, w) => sum + (Number(w.amount) || 0), 0);
-  const totalPendingWithdrawals = withdrawals
-    .filter((w) => w.status === 'pending')
-    .reduce((sum, w) => sum + (Number(w.amount) || 0), 0);
-
-  const availableBalance = Math.max(
-    0,
-    totalNetEarnings - totalPaidWithdrawals - totalPendingWithdrawals
-  );
+  const pendingOrdersCount = orders.filter((o) => o.status === 'pending_verification').length;
+  const completedOrdersCount = orders.filter((o) => o.status === 'completed' || o.status === 'paid' || o.status === 'delivered').length;
 
   // ================= PRODUCTS MANAGEMENT ACTIONS =================
   const handleOpenAddProduct = () => {
@@ -471,67 +452,6 @@ export default function VendorDashboardPage() {
     }
   };
 
-  const handleRequestWithdrawal = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const amountNum = parseFloat(withdrawAmount);
-    if (!amountNum || amountNum <= 0) {
-      alert(lang === 'ar' ? 'يرجى إدخال مبلغ صحيح' : 'Please enter a valid amount');
-      return;
-    }
-    if (amountNum > availableBalance) {
-      alert(
-        lang === 'ar'
-          ? `المبلغ المطلوب ($${amountNum}) أكبر من الرصيد المتاح للسحب ($${availableBalance.toFixed(2)})`
-          : `Amount exceeds available balance ($${availableBalance.toFixed(2)})`
-      );
-      return;
-    }
-    if (!withdrawMethodId) {
-      alert(lang === 'ar' ? 'يرجى اختيار وسيلة استلام الحوالة' : 'Please select a payout method');
-      return;
-    }
-
-    setActionLoading(true);
-    try {
-      const selectedMethod = payoutMethods.find((m) => m.id === withdrawMethodId);
-
-      const { error } = await supabase.from('withdrawals').insert({
-        vendor_id: vendorId,
-        amount: amountNum,
-        status: 'pending',
-        payout_method_id: withdrawMethodId,
-        admin_notes: 'طلب سحب قيد التحويل في سوريا',
-      });
-
-      if (error) {
-        await fetch('/api/vendor/withdrawals', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            vendor_id: vendorId,
-            amount: amountNum,
-            payout_method_id: withdrawMethodId,
-            vendor_name: vendorName,
-            store_name: vendorName,
-          }),
-        });
-      }
-
-      showToast(
-        lang === 'ar'
-          ? 'تم تقديم طلب السحب بنجاح! سيتم تحويل المبلغ عبر شام كاش / كاش في سوريا'
-          : 'Withdrawal requested! Payout will be remitted via Cham Cash offline.'
-      );
-      setIsWithdrawModalOpen(false);
-      setWithdrawAmount('');
-      fetchVendorData(vendorId);
-    } catch (err) {
-      alert('Failed to request withdrawal');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
   // Strictly protect route for Vendor / Admin roles only
   if (authChecked && userRole !== 'vendor' && userRole !== 'admin') {
     return (
@@ -595,8 +515,8 @@ export default function VendorDashboardPage() {
                 <MapPin className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                 <span className="truncate">
                   {lang === 'ar'
-                    ? 'إدارة المنتجات، إحداثيات المستودع، الطلبات الواردة، ومحفظة شام كاش'
-                    : 'Manage catalog, Syria dispatch coordinates, orders, and Cham Cash payouts'}
+                    ? 'إدارة المنتجات، إحداثيات المستودع، واستقبال إيصالات حوالات المغتربين المباشرة'
+                    : 'Manage catalog, Syria dispatch coordinates, and direct expat remittances'}
                 </span>
               </p>
             </div>
@@ -611,14 +531,16 @@ export default function VendorDashboardPage() {
               <span>{lang === 'ar' ? 'إضافة منتج جديد' : 'Add Product'}</span>
             </button>
             <button
-              onClick={() => {
-                setActiveTab('wallet');
-                setIsWithdrawModalOpen(true);
-              }}
+              onClick={() => setActiveTab('orders')}
               className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/20 text-xs font-bold transition cursor-pointer"
             >
-              <ArrowDownToLine className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span className="truncate">{lang === 'ar' ? 'سحب رصيد (شام كاش)' : 'Request Withdrawal'}</span>
+              <FileText className="w-4 h-4 text-amber-300 shrink-0" />
+              <span className="truncate">{lang === 'ar' ? 'إيصالات وحوالات المغتربين' : 'Expat Remittances'}</span>
+              {pendingOrdersCount > 0 && (
+                <span className="bg-amber-500 text-slate-950 text-[10px] font-black px-1.5 py-0.2 rounded-full shadow-xs">
+                  {pendingOrdersCount}
+                </span>
+              )}
             </button>
           </div>
         </div>
@@ -637,8 +559,8 @@ export default function VendorDashboardPage() {
             }`}
           >
             <Package className="w-4 h-4 shrink-0" />
-            <span className="sm:hidden">{lang === 'ar' ? 'المنتجات والموقع' : 'Products'}</span>
-            <span className="hidden sm:inline">{lang === 'ar' ? '1. إدارة المنتجات والموقع الجغرافي' : '1. Products Management'}</span>
+            <span className="sm:hidden">{lang === 'ar' ? 'المنتجات' : 'Products'}</span>
+            <span className="hidden sm:inline">{lang === 'ar' ? '1. إدارة المنتجات والموقع' : '1. Products & Location'}</span>
             <span
               className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
                 activeTab === 'products' ? 'bg-amber-700 text-white' : 'bg-gray-200 text-gray-700'
@@ -658,18 +580,22 @@ export default function VendorDashboardPage() {
             }`}
           >
             <ShoppingBag className="w-4 h-4 shrink-0" />
-            <span className="sm:hidden">{lang === 'ar' ? 'الطلبات' : 'Orders'}</span>
-            <span className="hidden sm:inline">{lang === 'ar' ? '2. إدارة الطلبات الواردة' : '2. Orders Management'}</span>
+            <span className="sm:hidden">{lang === 'ar' ? 'حوالات المغتربين' : 'Remittances'}</span>
+            <span className="hidden sm:inline">{lang === 'ar' ? '2. إيصالات وطلبات المغتربين' : '2. Expat Orders & Receipts'}</span>
             <span
-              className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                activeTab === 'orders' ? 'bg-emerald-600 text-white' : 'bg-emerald-100 text-emerald-800'
+              className={`text-[10px] px-2 py-0.5 rounded-full font-black ${
+                pendingOrdersCount > 0
+                  ? 'bg-amber-500 text-slate-950 animate-pulse'
+                  : activeTab === 'orders'
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-emerald-100 text-emerald-800'
               }`}
             >
-              {orders.length}
+              {pendingOrdersCount > 0 ? `${pendingOrdersCount} جديد` : orders.length}
             </span>
           </button>
 
-          {/* Tab 3: Wallet & Withdrawals (Cham Cash) */}
+          {/* Tab 3: Local Payment Details */}
           <button
             onClick={() => setActiveTab('wallet')}
             className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 sm:gap-2 shrink-0 cursor-pointer ${
@@ -678,11 +604,11 @@ export default function VendorDashboardPage() {
                 : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
             }`}
           >
-            <Wallet className="w-4 h-4 shrink-0" />
-            <span className="sm:hidden">{lang === 'ar' ? 'المحفظة' : 'Wallet'}</span>
-            <span className="hidden sm:inline">{lang === 'ar' ? '3. المحفظة وسحب الرصيد (شام كاش)' : '3. Wallet & Withdrawals'}</span>
-            <span className="text-[10px] px-2 py-0.5 bg-emerald-500 text-white rounded-full font-black">
-              ${availableBalance.toFixed(0)}
+            <CreditCard className="w-4 h-4 shrink-0" />
+            <span className="sm:hidden">{lang === 'ar' ? 'بيانات الاستلام' : 'Payout Info'}</span>
+            <span className="hidden sm:inline">{lang === 'ar' ? '3. بيانات استلام الحوالات (طرق الدفع)' : '3. My Payment Details'}</span>
+            <span className="text-[10px] px-1.5 py-0.2 bg-emerald-100 text-emerald-800 rounded-full font-bold">
+              {payoutMethods.length}
             </span>
           </button>
         </div>
@@ -1263,128 +1189,103 @@ export default function VendorDashboardPage() {
               </div>
             )}
 
-            {/* ================= TAB 3: WALLET & WITHDRAWALS (CHAM CASH) ================= */}
+            {/* ================= TAB 3: LOCAL REMITTANCE RECEIVING ACCOUNTS ================= */}
             {activeTab === 'wallet' && (
               <div className="space-y-6 sm:space-y-8">
-                {/* Available Balance & Financial Stats */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                  <div className="bg-gradient-to-br from-emerald-600 to-emerald-800 text-white p-5 sm:p-6 rounded-2xl shadow-md space-y-2 sm:col-span-2 lg:col-span-1">
+                {/* Direct Remittances Financial Overview */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+                  <div className="bg-gradient-to-br from-emerald-600 to-emerald-800 text-white p-5 sm:p-6 rounded-2xl shadow-md space-y-2">
                     <span className="text-emerald-100 text-xs font-bold uppercase tracking-wider">
-                      {lang === 'ar' ? 'الرصيد المتاح للسحب الفوري' : 'Available Balance'}
+                      {lang === 'ar' ? 'إجمالي الحوالات المباشرة' : 'Total Direct Remittances'}
                     </span>
-                    <div className="text-3xl font-black">
-                      ${availableBalance.toFixed(2)} <span className="text-xs font-normal">USD</span>
+                    <div className="text-2xl sm:text-3xl font-black">
+                      ${totalNetEarnings.toFixed(2)} <span className="text-xs font-normal">USD</span>
                     </div>
-                    <div className="pt-2 border-t border-emerald-500/50 flex items-center justify-between">
-                      <span className="text-[11px] text-emerald-200">
-                        {lang === 'ar' ? 'جاهز للتحويل عبر شام كاش' : 'Ready for Cham Cash'}
-                      </span>
-                      <button
-                        onClick={() => setIsWithdrawModalOpen(true)}
-                        className="px-3 py-1 bg-white text-emerald-800 rounded-lg text-xs font-black shadow-xs hover:bg-emerald-50 cursor-pointer"
-                      >
-                        {lang === 'ar' ? 'طلب سحب' : 'Withdraw'}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="bg-white p-4 sm:p-5 rounded-2xl border border-gray-200 shadow-xs space-y-1">
-                    <span className="text-gray-400 text-xs font-bold uppercase tracking-wider">
-                      {lang === 'ar' ? 'إجمالي المبيعات' : 'Total Gross Sales'}
-                    </span>
-                    <div className="text-xl sm:text-2xl font-black text-gray-900">${totalGrossSales.toFixed(2)}</div>
-                    <p className="text-[11px] text-gray-500 pt-2 border-t border-gray-100">
-                      {lang === 'ar' ? 'قيمة مبيعاتك الإجمالية المدفوعة' : 'Gross customer payments'}
+                    <p className="text-[11px] text-emerald-100/90 pt-2 border-t border-emerald-500/50">
+                      {lang === 'ar' ? 'حوالات مستلمة مباشرة لحسابك في سوريا' : 'Direct payments received in Syria'}
                     </p>
                   </div>
 
                   <div className="bg-white p-4 sm:p-5 rounded-2xl border border-gray-200 shadow-xs space-y-1">
                     <span className="text-gray-400 text-xs font-bold uppercase tracking-wider">
-                      {lang === 'ar' ? 'طلبات سحب قيد الانتظار' : 'Pending Withdrawals'}
+                      {lang === 'ar' ? 'حوالات بانتظار المطابقة' : 'Pending Verification'}
                     </span>
-                    <div className="text-xl sm:text-2xl font-black text-amber-700">${totalPendingWithdrawals.toFixed(2)}</div>
+                    <div className="text-xl sm:text-2xl font-black text-amber-600">
+                      {pendingOrdersCount} {lang === 'ar' ? 'طلبات' : 'Orders'}
+                    </div>
                     <p className="text-[11px] text-gray-500 pt-2 border-t border-gray-100">
-                      {lang === 'ar' ? 'بانتظار إشعار الحوالة من الإدارة' : 'Pending transfer voucher'}
+                      {lang === 'ar' ? 'بانتظار مطابقة رقم الإشعار' : 'Awaiting remittance verification'}
                     </p>
                   </div>
 
                   <div className="bg-white p-4 sm:p-5 rounded-2xl border border-gray-200 shadow-xs space-y-1">
                     <span className="text-gray-400 text-xs font-bold uppercase tracking-wider">
-                      {lang === 'ar' ? 'إجمالي المبالغ المستلمة' : 'Settled Payouts'}
+                      {lang === 'ar' ? 'الطلبات المكتملة' : 'Completed Orders'}
                     </span>
-                    <div className="text-xl sm:text-2xl font-black text-slate-800">${totalPaidWithdrawals.toFixed(2)}</div>
+                    <div className="text-xl sm:text-2xl font-black text-slate-800">
+                      {completedOrdersCount} {lang === 'ar' ? 'طلبات' : 'Orders'}
+                    </div>
                     <p className="text-[11px] text-gray-500 pt-2 border-t border-gray-100">
-                      {lang === 'ar' ? 'تم استلامها كاش أو شام كاش' : 'Received in Syria'}
+                      {lang === 'ar' ? 'تم استلام حوالاتها بنجاح' : 'Payment received & completed'}
                     </p>
                   </div>
                 </div>
 
-                {/* Syrian Local Payment Method (Cham Cash Form) */}
+                {/* Syrian Local Payment Method Details for Expat Buyers */}
                 <div className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-6 shadow-xs space-y-4 sm:space-y-6">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-4">
-                    <div>
-                      <h3 className="text-sm sm:text-base font-black text-gray-900 flex items-center gap-2">
-                        <CreditCard className="w-5 h-5 text-emerald-600 shrink-0" />
-                        <span>{lang === 'ar' ? 'حسابات استلام الحوالات (شام كاش / سيريتل كاش / بنوك)' : 'Syrian Payout Methods (Cham Cash)'}</span>
-                      </h3>
-                      <p className="text-xs text-gray-500 mt-0.5">
-                        {lang === 'ar'
-                          ? 'أدخل رقم محفظة شام كاش الخاصة بك في سوريا لتستلم أرباح مبيعاتك عليها مباشرة'
-                          : 'Save your Cham Cash wallet ID or Syrian bank details to receive offline payouts.'}
-                      </p>
-                    </div>
-
-                    <button
-                      onClick={() => setIsWithdrawModalOpen(true)}
-                      className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition cursor-pointer"
-                    >
-                      <ArrowDownToLine className="w-4 h-4" />
-                      <span>{lang === 'ar' ? 'طلب سحب رصيد' : 'Request Withdrawal'}</span>
-                    </button>
+                  <div className="border-b border-gray-100 pb-4">
+                    <h3 className="text-sm sm:text-base font-black text-gray-900 flex items-center gap-2">
+                      <CreditCard className="w-5 h-5 text-emerald-600 shrink-0" />
+                      <span>{lang === 'ar' ? 'بيانات وحسابات استلام الحوالات المباشرة من المغتربين' : 'Local Remittance Receiving Accounts'}</span>
+                    </h3>
+                    <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                      {lang === 'ar'
+                        ? 'أدخل بيانات حساباتك (الهرم للحوالات، شركة الفؤاد، سيريتل كاش، شام كاش) لتظهر للمغتربين عند إتمام الشراء ليتمكنوا من تحويل قيمة السلع لحسابك مباشرة.'
+                        : 'Manage your local Syrian transfer accounts (Al-Haram, Al-Fouad, Syriatel Cash, Cham Cash) so expat buyers can remit directly to you.'}
+                    </p>
                   </div>
 
                   {/* Inline Form to Add / Save Cham Cash Details */}
                   <form onSubmit={handleSaveChamCashMethod} className="bg-slate-50/80 p-3.5 sm:p-4 rounded-2xl border border-slate-200 space-y-3">
                     <div className="text-xs font-bold text-gray-800 flex items-center gap-2">
                       <Plus className="w-4 h-4 text-emerald-600 shrink-0" />
-                      <span>{lang === 'ar' ? 'إضافة وسيلة استلام جديدة (شام كاش / سيريتل كاش / بنك سوري)' : 'Add New Payout Method'}</span>
+                      <span>{lang === 'ar' ? 'إضافة وسيلة استلام حوالة جديدة (الهرم / الفؤاد / سيريتل / شام كاش)' : 'Add New Transfer Method'}</span>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div>
                         <label className="block text-xs font-semibold text-gray-700 mb-1">
-                          {lang === 'ar' ? 'نوع الوسيلة *' : 'Method Type *'}
+                          {lang === 'ar' ? 'طريقة التحويل *' : 'Transfer Method *'}
                         </label>
                         <select
                           value={chamCashForm.method_name}
                           onChange={(e) => setChamCashForm({ ...chamCashForm, method_name: e.target.value })}
                           className="w-full text-xs px-3 py-2 rounded-xl border border-gray-300 bg-white font-bold text-gray-800 focus:ring-1 focus:ring-emerald-500"
                         >
-                          <option value="Cham Cash (شام كاش)">Cham Cash (شام كاش - محفظة إلكترونية)</option>
-                          <option value="Syriatel Cash (سيريتل كاش)">Syriatel Cash (سيريتل كاش)</option>
-                          <option value="شركة الهرم للحوالات (Al-Haram)">شركة الهرم للحوالات (استلام كاش)</option>
-                          <option value="بنك سورية الدولي الإسلامي (SIIB)">بنك سورية الدولي الإسلامي</option>
-                          <option value="بنك بيمو السعودي الفرنسي (BBSF)">بنك بيمو السعودي الفرنسي</option>
+                          <option value="شركة الهرم للحوالات (Al-Haram)">الهرم للحوالات (استلام بالفرع / كاش)</option>
+                          <option value="شركة الفؤاد للحوالات (Al-Fouad)">شركة الفؤاد للحوالات</option>
+                          <option value="سيريتل كاش (Syriatel Cash)">سيريتل كاش (Syriatel Cash)</option>
+                          <option value="شام كاش (Cham Cash)">شام كاش (Cham Cash)</option>
                         </select>
                       </div>
 
                       <div>
                         <label className="block text-xs font-semibold text-gray-700 mb-1">
-                          {lang === 'ar' ? 'رقم حساب شام كاش / الموبايل *' : 'Cham Cash Number / Mobile *'}
+                          {lang === 'ar' ? 'رقم الحساب أو رقم الموبايل *' : 'Account or Mobile # *'}
                         </label>
                         <input
                           type="text"
                           required
                           value={chamCashForm.account_number}
                           onChange={(e) => setChamCashForm({ ...chamCashForm, account_number: e.target.value })}
-                          placeholder="مثال: CHAM-9844-0129 أو 0944112233"
+                          placeholder="مثال: 0944112233 أو رقم المحفظة"
                           className="w-full text-xs px-3 py-2 rounded-xl border border-gray-300 bg-white font-mono font-bold text-gray-900 focus:ring-1 focus:ring-emerald-500"
                         />
                       </div>
 
                       <div>
                         <label className="block text-xs font-semibold text-gray-700 mb-1">
-                          {lang === 'ar' ? 'اسم صاحب الحساب الثلاثي *' : 'Beneficiary Full Name *'}
+                          {lang === 'ar' ? 'اسم المستلم الثلاثي (كما في الهوية) *' : 'Receiver Full Name *'}
                         </label>
                         <input
                           type="text"
@@ -1402,7 +1303,7 @@ export default function VendorDashboardPage() {
                         type="text"
                         value={chamCashForm.notes}
                         onChange={(e) => setChamCashForm({ ...chamCashForm, notes: e.target.value })}
-                        placeholder={lang === 'ar' ? 'ملاحظات إضافية (اختياري، مثلاً: فرع البرامكة دمشق)' : 'Optional notes (branch, city)'}
+                        placeholder={lang === 'ar' ? 'المدينة أو الفرع المفضل (مثلاً: دمشق، فرع البرامكة)' : 'City or preferred branch'}
                         className="w-full sm:w-2/3 text-xs px-3 py-2 rounded-xl border border-gray-300 bg-white text-gray-700"
                       />
 
@@ -1420,12 +1321,12 @@ export default function VendorDashboardPage() {
                   {/* List of Saved Syrian Payout Methods */}
                   <div className="space-y-3">
                     <span className="text-xs font-bold text-gray-700 block">
-                      {lang === 'ar' ? 'وسائل الاستلام المحفوظة في حسابك:' : 'Saved Payout Methods:'}
+                      {lang === 'ar' ? 'وسائل الاستلام المحفوظة للظهور للمغتربين عند الدفع:' : 'Saved Payout Methods:'}
                     </span>
 
                     {payoutMethods.length === 0 ? (
                       <p className="text-xs text-gray-400 italic">
-                        {lang === 'ar' ? 'لم تقم بحفظ أي حساب شام كاش بعد.' : 'No saved methods yet.'}
+                        {lang === 'ar' ? 'لم تقم بحفظ أي وسيلة استلام بعد. أضف وسيلتك أعلاه ليتمكن المغتربون من التحويل لحسابك مباشرة.' : 'No saved methods yet.'}
                       </p>
                     ) : (
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -1454,122 +1355,6 @@ export default function VendorDashboardPage() {
                       </div>
                     )}
                   </div>
-                </div>
-
-                {/* Withdrawal Requests History */}
-                <div className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-6 shadow-xs space-y-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div>
-                      <h3 className="text-sm font-black text-gray-900">
-                        {lang === 'ar' ? 'سجل طلبات السحب والحوالات المرسلة للإدارة' : 'Withdrawals History'}
-                      </h3>
-                      <p className="text-xs text-gray-500">
-                        {lang === 'ar'
-                          ? 'متابعة حالة الحوالات المالية التي تم تحويلها يدوياً في سوريا وأرقام إشعارات شام كاش'
-                          : 'Track payout requests, Cham Cash voucher codes, and offline fulfillment status.'}
-                      </p>
-                    </div>
-
-                    <button
-                      onClick={() => setIsWithdrawModalOpen(true)}
-                      className="w-full sm:w-auto px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 transition cursor-pointer shadow-xs text-center"
-                    >
-                      {lang === 'ar' ? 'طلب سحب جديد' : 'New Payout Request'}
-                    </button>
-                  </div>
-
-                  {withdrawals.length === 0 ? (
-                    <div className="p-8 border border-dashed border-gray-200 rounded-xl text-center text-xs text-gray-400">
-                      {lang === 'ar' ? 'لا توجد طلبات سحب سابقة' : 'No withdrawal requests yet'}
-                    </div>
-                  ) : (
-                    <>
-                      {/* Mobile Cards for Withdrawals */}
-                      <div className="block md:hidden space-y-2.5">
-                        {withdrawals.map((w) => (
-                          <div key={w.id} className="p-3.5 rounded-xl border border-gray-200 bg-slate-50/50 space-y-2">
-                            <div className="flex items-center justify-between">
-                              <span className="font-mono font-bold text-gray-700 text-xs">{w.id}</span>
-                              <span className="font-black text-gray-900 text-sm">${Number(w.amount).toFixed(2)} USD</span>
-                            </div>
-                            <div className="flex items-center justify-between text-xs">
-                              <div>
-                                {w.status === 'paid' ? (
-                                  <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                                    <span>{lang === 'ar' ? 'تم التسليم كاش' : 'Paid & Settled'}</span>
-                                  </span>
-                                ) : (
-                                  <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                                    <Clock className="w-3 h-3 text-amber-600" />
-                                    <span>{lang === 'ar' ? 'قيد التحويل في سوريا' : 'Pending Transfer'}</span>
-                                  </span>
-                                )}
-                              </div>
-                              <span className="text-gray-400 text-[10px]">
-                                {new Date(w.created_at).toLocaleDateString(lang === 'ar' ? 'ar-SY' : 'en-US')}
-                              </span>
-                            </div>
-                            {w.transaction_ref && (
-                              <div className="text-[11px] font-mono text-emerald-800 bg-emerald-50 p-1.5 rounded-lg border border-emerald-200">
-                                {lang === 'ar' ? 'رقم الإشعار: ' : 'Voucher: '} {w.transaction_ref}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Desktop Table for Withdrawals */}
-                      <div className="hidden md:block overflow-x-auto">
-                        <table className="w-full text-xs text-start">
-                          <thead className="text-[11px] uppercase bg-gray-50 text-gray-500 font-bold border-y border-gray-100">
-                            <tr>
-                              <th className="py-3 px-4">{lang === 'ar' ? 'رقم الطلب' : 'Request ID'}</th>
-                              <th className="py-3 px-4">{lang === 'ar' ? 'المبلغ المطلوب' : 'Amount'}</th>
-                              <th className="py-3 px-4">{lang === 'ar' ? 'الحالة' : 'Status'}</th>
-                              <th className="py-3 px-4">{lang === 'ar' ? 'إشعار الحوالة (في سوريا)' : 'Voucher Ref'}</th>
-                              <th className="py-3 px-4">{lang === 'ar' ? 'تاريخ الطلب' : 'Date'}</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-100">
-                            {withdrawals.map((w) => (
-                              <tr key={w.id} className="hover:bg-gray-50/50">
-                                <td className="py-3 px-4 font-mono font-bold text-gray-700">{w.id}</td>
-                                <td className="py-3 px-4 font-black text-gray-900 text-sm">${Number(w.amount).toFixed(2)} USD</td>
-                                <td className="py-3 px-4">
-                                  {w.status === 'paid' ? (
-                                    <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                                      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                                      <span>{lang === 'ar' ? 'تم التسليم كاش' : 'Paid & Settled'}</span>
-                                    </span>
-                                  ) : (
-                                    <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                                      <Clock className="w-3 h-3 text-amber-600" />
-                                      <span>{lang === 'ar' ? 'قيد التحويل في سوريا' : 'Pending Transfer'}</span>
-                                    </span>
-                                  )}
-                                </td>
-                                <td className="py-3 px-4 font-mono text-gray-700">
-                                  {w.transaction_ref ? (
-                                    <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                                      {w.transaction_ref}
-                                    </span>
-                                  ) : (
-                                    <span className="text-gray-400 italic">
-                                      {lang === 'ar' ? 'بانتظار إشعار الإدارة' : 'Awaiting voucher'}
-                                    </span>
-                                  )}
-                                </td>
-                                <td className="py-3 px-4 text-gray-400">
-                                  {new Date(w.created_at).toLocaleDateString(lang === 'ar' ? 'ar-SY' : 'en-US')}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </>
-                  )}
                 </div>
               </div>
             )}
@@ -1717,102 +1502,6 @@ export default function VendorDashboardPage() {
                       ? lang === 'ar' ? 'حفظ التعديلات' : 'Save Changes'
                       : lang === 'ar' ? 'نشر المنتج الآن' : 'Publish Product'}
                   </span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ================= MODAL: REQUEST WITHDRAWAL (CHAM CASH) ================= */}
-      {isWithdrawModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-md w-full p-4 sm:p-6 shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-              <h3 className="text-sm font-black text-gray-900 flex items-center gap-2">
-                <ArrowDownToLine className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>{lang === 'ar' ? 'طلب سحب أرباح المتجر (شام كاش)' : 'Request Cham Cash Withdrawal'}</span>
-              </h3>
-              <button
-                onClick={() => setIsWithdrawModalOpen(false)}
-                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-between">
-              <span className="text-xs font-bold text-emerald-900">
-                {lang === 'ar' ? 'الرصيد المتاح للسحب الآن:' : 'Available Balance:'}
-              </span>
-              <span className="text-base font-black text-emerald-800">
-                ${availableBalance.toFixed(2)} USD
-              </span>
-            </div>
-
-            <form onSubmit={handleRequestWithdrawal} className="space-y-3">
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">
-                  {lang === 'ar' ? 'المبلغ المطلوب سحبه ($ USD) *' : 'Withdrawal Amount ($ USD) *'}
-                </label>
-                <input
-                  type="number"
-                  step="1"
-                  max={availableBalance}
-                  required
-                  value={withdrawAmount}
-                  onChange={(e) => setWithdrawAmount(e.target.value)}
-                  placeholder="مثال: 50"
-                  className="w-full text-xs px-3 py-2.5 rounded-xl border border-gray-300 focus:ring-1 focus:ring-emerald-500 font-bold"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">
-                  {lang === 'ar' ? 'اختر حساب شام كاش للاستلام *' : 'Select Cham Cash Account *'}
-                </label>
-                {payoutMethods.length === 0 ? (
-                  <div className="text-xs text-rose-600 p-2 bg-rose-50 rounded-lg">
-                    {lang === 'ar'
-                      ? 'يرجى حفظ حساب شام كاش أولاً من قسم المحفظة لتتمكن من تقديم طلب السحب.'
-                      : 'Please save a Cham Cash account first.'}
-                  </div>
-                ) : (
-                  <select
-                    value={withdrawMethodId}
-                    onChange={(e) => setWithdrawMethodId(e.target.value)}
-                    className="w-full text-xs px-3 py-2.5 rounded-xl border border-gray-300 focus:ring-1 focus:ring-emerald-500 font-semibold"
-                  >
-                    {payoutMethods.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.method_name} - {m.account_number} ({m.account_holder_name})
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
-
-              <p className="text-[11px] text-gray-500 bg-slate-50 p-2.5 rounded-xl border border-gray-200">
-                💡 {lang === 'ar'
-                  ? 'يتم خصم المبلغ من رصيدك المتاح فوراً، وتقوم الإدارة بتحويل المبلغ عبر شام كاش / كاش في سوريا وتزويدك برقم الإشعار.'
-                  : 'Amount is deducted from your balance immediately. Admin manually transfers funds in Syria and records the voucher.'}
-              </p>
-
-              <div className="pt-2 flex flex-col-reverse sm:flex-row justify-end gap-2 border-t border-gray-100">
-                <button
-                  type="button"
-                  onClick={() => setIsWithdrawModalOpen(false)}
-                  className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-gray-200 text-gray-700 text-xs font-bold hover:bg-gray-50 cursor-pointer text-center"
-                >
-                  {lang === 'ar' ? 'إلغاء' : 'Cancel'}
-                </button>
-                <button
-                  type="submit"
-                  disabled={actionLoading || payoutMethods.length === 0}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md cursor-pointer disabled:opacity-60"
-                >
-                  {actionLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                  <span>{lang === 'ar' ? 'تأكيد طلب السحب' : 'Confirm Withdrawal'}</span>
                 </button>
               </div>
             </form>
