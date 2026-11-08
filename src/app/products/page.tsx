@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useCart } from '@/lib/CartContext';
@@ -54,8 +54,43 @@ export default function ProductsPage() {
     fetchProducts();
   }, []);
 
+  // Dynamic category tabs based on predefined filters + any custom categories added by vendors
+  const availableCategories = useMemo(() => {
+    const baseCats = [
+      { id: 'all', label: t('filterAll') },
+      { id: 'food', label: t('categoryFood') },
+      { id: 'health', label: t('categoryHealth') },
+      { id: 'energy', label: t('categoryEnergy') },
+      { id: 'winter', label: t('categoryWinter') },
+    ];
+    const knownKeys = new Set(['all', 'food', 'health', 'energy', 'winter', 'غذائي وتمويني', 'صحي ورعاية طبية', 'طاقة ومحروقات', 'مستلزمات شتوية وتدفئة']);
+    const customCats: { id: string; label: string }[] = [];
+    
+    products.forEach((p) => {
+      if (p.category && !knownKeys.has(p.category) && !customCats.some((c) => c.id === p.category)) {
+        customCats.push({ id: p.category, label: p.category });
+      }
+    });
+
+    return [...baseCats, ...customCats];
+  }, [products, t]);
+
   const filteredProducts = products.filter((product) => {
-    const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory;
+    let matchesCategory = selectedCategory === 'all';
+    if (!matchesCategory) {
+      if (product.category === selectedCategory) {
+        matchesCategory = true;
+      } else if (selectedCategory === 'food' && (product.category === 'food' || product.category?.includes('غذاء') || product.category?.includes('غذائ') || product.category?.includes('تموين'))) {
+        matchesCategory = true;
+      } else if (selectedCategory === 'health' && (product.category === 'health' || product.category?.includes('صح') || product.category?.includes('دواء') || product.category?.includes('طب'))) {
+        matchesCategory = true;
+      } else if (selectedCategory === 'energy' && (product.category === 'energy' || product.category?.includes('طاق') || product.category?.includes('محروق') || product.category?.includes('شمس'))) {
+        matchesCategory = true;
+      } else if (selectedCategory === 'winter' && (product.category === 'winter' || product.category?.includes('شت') || product.category?.includes('تدفئ'))) {
+        matchesCategory = true;
+      }
+    }
+
     const title = lang === 'ar' ? product.title_ar : product.title_en || product.title_ar;
     const desc = lang === 'ar' ? product.description_ar : product.description_en || '';
     const matchesSearch =
@@ -103,13 +138,7 @@ export default function ProductsPage() {
 
         {/* Category Filter Pills */}
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-2 text-xs">
-          {[
-            { id: 'all', label: t('filterAll') },
-            { id: 'food', label: t('categoryFood') },
-            { id: 'health', label: t('categoryHealth') },
-            { id: 'energy', label: t('categoryEnergy') },
-            { id: 'winter', label: t('categoryWinter') },
-          ].map((cat) => (
+          {availableCategories.map((cat) => (
             <button
               key={cat.id}
               onClick={() => setSelectedCategory(cat.id)}
@@ -168,6 +197,11 @@ export default function ProductsPage() {
                         <div className="w-full h-full bg-emerald-50 text-emerald-800 flex items-center justify-center font-black text-xl">
                           سَنَد
                         </div>
+                      )}
+                      {product.category && (
+                        <span className="absolute top-3 start-3 bg-slate-900/80 backdrop-blur-xs text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-md">
+                          {product.category}
+                        </span>
                       )}
                       <span className="absolute top-3 end-3 bg-emerald-600 text-white text-[10px] sm:text-[11px] font-bold px-2.5 py-1 rounded-full shadow-md">
                         {lang === 'ar' ? 'متوفر' : 'Available'}

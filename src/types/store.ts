@@ -53,7 +53,7 @@ export interface Product {
   description_en: string;
   description_ar: string;
   price_usd: number;
-  category: 'food' | 'health' | 'energy' | 'winter';
+  category: string;
   badge_en?: string;
   badge_ar?: string;
   image_url: string;

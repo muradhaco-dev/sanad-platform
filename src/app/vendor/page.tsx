@@ -69,7 +69,7 @@ export default function VendorDashboardPage() {
     description_en: '',
     description_ar: '',
     price_usd: '',
-    category: 'food' as 'food' | 'health' | 'energy' | 'winter',
+    category: 'غذائي وتمويني',
     image_url: '',
     latitude: 33.5138,
     longitude: 36.2765,
@@ -345,7 +345,7 @@ export default function VendorDashboardPage() {
       description_en: '',
       description_ar: '',
       price_usd: '',
-      category: 'food',
+      category: lang === 'ar' ? 'غذائي وتمويني' : 'Food & Nutrition',
       image_url: '',
       latitude: 33.5138,
       longitude: 36.2765,
@@ -364,7 +364,7 @@ export default function VendorDashboardPage() {
       description_en: prod.description_en,
       description_ar: prod.description_ar,
       price_usd: prod.price_usd.toString(),
-      category: (prod.category as any) || 'food',
+      category: prod.category || (lang === 'ar' ? 'غذائي وتمويني' : 'Food & Nutrition'),
       image_url: prod.image_url,
       latitude: prod.latitude || 33.5138,
       longitude: prod.longitude || 36.2765,
@@ -396,7 +396,7 @@ export default function VendorDashboardPage() {
         description_en: productForm.description_en || productForm.description_ar,
         description_ar: productForm.description_ar,
         price_usd: parseFloat(productForm.price_usd),
-        category: productForm.category,
+        category: productForm.category.trim() || (lang === 'ar' ? 'عام' : 'General'),
         image_url: productForm.image_url,
         latitude: productForm.latitude,
         longitude: productForm.longitude,
@@ -1551,19 +1551,36 @@ export default function VendorDashboardPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">
-                    {lang === 'ar' ? 'تصنيف السلعة' : 'Category'}
-                  </label>
-                  <select
-                    value={productForm.category}
-                    onChange={(e) => setProductForm({ ...productForm, category: e.target.value as any })}
-                    className="w-full text-xs px-3 py-2.5 rounded-xl border border-gray-300 focus:ring-1 focus:ring-amber-500"
-                  >
-                    <option value="food">{lang === 'ar' ? 'سلال غذائية وتموينية' : 'Food & Nutrition'}</option>
-                    <option value="health">{lang === 'ar' ? 'أدوية ورعاية صحية' : 'Health & Medicine'}</option>
-                    <option value="energy">{lang === 'ar' ? 'طاقة شمسية ومحروقات' : 'Energy & Fuel'}</option>
-                    <option value="winter">{lang === 'ar' ? 'مستلزمات شتوية وتدفئة' : 'Winter & Warmth'}</option>
-                  </select>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-gray-700">
+                      {lang === 'ar' ? 'تصنيف السلعة (حر أو اختر مقترح)' : 'Category (Custom or Suggested)'}
+                    </label>
+                    <span className="text-[10px] text-gray-400">
+                      {lang === 'ar' ? 'يمكنك كتابة أي تصنيف تريده' : 'Type any custom category'}
+                    </span>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      list="vendor-category-suggestions"
+                      required
+                      value={productForm.category}
+                      onChange={(e) => setProductForm({ ...productForm, category: e.target.value })}
+                      placeholder={lang === 'ar' ? 'مثال: كهربائيات، ألبسة، مواد تموينية، أدوات منزلية...' : 'e.g. Electronics, Clothing, Groceries...'}
+                      className="w-full text-xs px-3 py-2.5 rounded-xl border border-gray-300 focus:ring-1 focus:ring-amber-500 font-semibold text-gray-800 placeholder-gray-400"
+                    />
+                    <datalist id="vendor-category-suggestions">
+                      <option value={lang === 'ar' ? 'غذائي وتمويني' : 'Food & Nutrition'} />
+                      <option value={lang === 'ar' ? 'صحي ورعاية طبية' : 'Health & Medicine'} />
+                      <option value={lang === 'ar' ? 'طاقة ومحروقات' : 'Energy & Fuel'} />
+                      <option value={lang === 'ar' ? 'مستلزمات شتوية وتدفئة' : 'Winter & Warmth'} />
+                      <option value={lang === 'ar' ? 'كهربائيات وإلكترونيات' : 'Electronics'} />
+                      <option value={lang === 'ar' ? 'ألبسة وأقمشة' : 'Clothing & Textiles'} />
+                      <option value={lang === 'ar' ? 'أدوات منزلية ومفروشات' : 'Home Goods & Furniture'} />
+                      <option value={lang === 'ar' ? 'قرطاسية ومستلزمات مدرسية' : 'School & Stationery'} />
+                      <option value={lang === 'ar' ? 'أطفال ومستلزمات رضع' : 'Baby & Kids'} />
+                    </datalist>
+                  </div>
                 </div>
               </div>
 
