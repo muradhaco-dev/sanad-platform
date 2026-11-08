@@ -1,58 +1,103 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Language, translations } from './translations';
+import {
+  Language,
+  LanguageInfo,
+  SUPPORTED_LANGUAGES,
+  translations,
+  TranslationKey,
+} from './translations';
 
 interface LanguageContextType {
   lang: Language;
   dir: 'ltr' | 'rtl';
   setLang: (lang: Language) => void;
   toggleLang: () => void;
-  t: (key: keyof typeof translations['en']) => string;
+  t: (key: TranslationKey) => string;
+  currentLanguage: LanguageInfo;
+  languages: LanguageInfo[];
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [lang, setLangState] = useState<Language>('en');
+  // Default is Arabic (العربية) - Default, RTL
+  const [lang, setLangState] = useState<Language>('ar');
 
   useEffect(() => {
-    // Check saved language preference or browser setting
+    // Check saved language preference from localStorage or cookie
     const saved = localStorage.getItem('sanad_lang') as Language;
-    if (saved === 'ar' || saved === 'en') {
+    const isValid = SUPPORTED_LANGUAGES.some((l) => l.code === saved);
+
+    if (saved && isValid) {
       setLangState(saved);
+      const langInfo = SUPPORTED_LANGUAGES.find((l) => l.code === saved);
+      const newDir = langInfo?.dir || (saved === 'ar' ? 'rtl' : 'ltr');
       document.documentElement.lang = saved;
-      document.documentElement.dir = saved === 'ar' ? 'rtl' : 'ltr';
+      document.documentElement.dir = newDir;
     } else {
-      // Default is English
-      setLangState('en');
-      document.documentElement.lang = 'en';
-      document.documentElement.dir = 'ltr';
+      // Default: Arabic, RTL
+      setLangState('ar');
+      document.documentElement.lang = 'ar';
+      document.documentElement.dir = 'rtl';
     }
   }, []);
 
   const setLang = (newLang: Language) => {
+    const langInfo = SUPPORTED_LANGUAGES.find((l) => l.code === newLang);
+    const newDir = langInfo?.dir || (newLang === 'ar' ? 'rtl' : 'ltr');
+
     setLangState(newLang);
-    localStorage.setItem('sanad_lang', newLang);
-    document.cookie = `sanad_lang=${newLang}; path=/; max-age=31536000`;
+    try {
+      localStorage.setItem('sanad_lang', newLang);
+      document.cookie = `sanad_lang=${newLang}; path=/; max-age=31536000; SameSite=Lax`;
+    } catch {
+      // ignore storage errors
+    }
     document.documentElement.lang = newLang;
-    document.documentElement.dir = newLang === 'ar' ? 'rtl' : 'ltr';
+    document.documentElement.dir = newDir;
   };
 
   const toggleLang = () => {
-    setLang(lang === 'en' ? 'ar' : 'en');
+    // Quick toggle between primary RTL (ar) and primary LTR (en)
+    setLang(lang === 'ar' ? 'en' : 'ar');
   };
 
-  const t = (key: keyof typeof translations['en']): string => {
-    const dict = translations[lang] || translations['en'];
-    return dict[key] || translations['en'][key] || String(key);
+  const t = (key: TranslationKey): string => {
+    const activeDict = translations[lang] as Record<string, string> | undefined;
+    if (activeDict && activeDict[key]) {
+      return activeDict[key];
+    }
+    const enDict = translations['en'] as Record<string, string>;
+    if (enDict && enDict[key]) {
+      return enDict[key];
+    }
+    const arDict = translations['ar'] as Record<string, string>;
+    if (arDict && arDict[key]) {
+      return arDict[key];
+    }
+    return String(key);
   };
 
-  const dir = lang === 'ar' ? 'rtl' : 'ltr';
+  const currentLanguage: LanguageInfo =
+    SUPPORTED_LANGUAGES.find((l) => l.code === lang) || SUPPORTED_LANGUAGES[0];
+
+  const dir = currentLanguage.dir;
 
   return (
-    <LanguageContext.Provider value={{ lang, dir, setLang, toggleLang, t }}>
-      <div className={lang === 'ar' ? 'font-sans' : 'font-sans'}>
+    <LanguageContext.Provider
+      value={{
+        lang,
+        dir,
+        setLang,
+        toggleLang,
+        t,
+        currentLanguage,
+        languages: SUPPORTED_LANGUAGES,
+      }}
+    >
+      <div dir={dir} className="w-full">
         {children}
       </div>
     </LanguageContext.Provider>

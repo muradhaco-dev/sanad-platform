@@ -24,10 +24,11 @@ import {
   ChevronRight,
   ChevronLeft,
   Sparkles,
+  Check,
 } from 'lucide-react';
 
 export default function Navbar() {
-  const { lang, toggleLang, t } = useLanguage();
+  const { lang, setLang, t, currentLanguage, languages } = useLanguage();
   const { totalItems, toggleCart } = useCart();
   const pathname = usePathname();
   const router = useRouter();
@@ -36,9 +37,11 @@ export default function Navbar() {
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [langDropdownOpen, setLangDropdownOpen] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const langDropdownRef = useRef<HTMLDivElement>(null);
 
   // Helper to fetch user's strict role from Supabase database profiles table
   const fetchUserRole = async (userId: string, metadataRole?: string) => {
@@ -130,14 +133,18 @@ export default function Navbar() {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setDropdownOpen(false);
       }
+      if (langDropdownRef.current && !langDropdownRef.current.contains(event.target as Node)) {
+        setLangDropdownOpen(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Close drawer and dropdown on route change
+  // Close drawer and dropdowns on route change
   useEffect(() => {
     setDropdownOpen(false);
+    setLangDropdownOpen(false);
     setMobileMenuOpen(false);
   }, [pathname]);
 
@@ -170,9 +177,7 @@ export default function Navbar() {
       <div className="bg-slate-900 text-slate-200 text-[11px] sm:text-xs py-1.5 px-3 sm:px-4 text-center flex items-center justify-center gap-1.5 sm:gap-2 font-medium tracking-wide">
         <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
         <span className="truncate">
-          {lang === 'ar'
-            ? 'دعم مباشر • بدون رسوم مخفية • تحويلات محلية آمنة 100%'
-            : 'Direct Support • No Hidden Fees • 100% Secure Local Transfers'}
+          {t('oneTimePayment')} • {t('securePayment')}
         </span>
       </div>
 
@@ -263,16 +268,71 @@ export default function Navbar() {
             <span>{t('aboutUs')}</span>
           </Link>
 
-          {/* Language Toggle Button */}
-          <button
-            type="button"
-            onClick={toggleLang}
-            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-gray-200 hover:border-gray-300 bg-gray-50 text-xs font-bold text-gray-700 hover:bg-gray-100 transition cursor-pointer"
-            title="Switch Language / تغيير اللغة"
-          >
-            <Globe className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-            <span className="uppercase text-[11px]">{t('langToggle')}</span>
-          </button>
+          {/* Multi-Language Dropdown Switcher (6 Languages: AR, EN, DE, TR, FR, SV) */}
+          <div className="relative" ref={langDropdownRef}>
+            <button
+              type="button"
+              onClick={() => setLangDropdownOpen((prev) => !prev)}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-gray-200 hover:border-gray-300 bg-white hover:bg-gray-50 text-xs font-bold text-gray-700 transition cursor-pointer shadow-2xs"
+              title="Change Language / تغيير اللغة"
+              aria-label="Change Language"
+              aria-expanded={langDropdownOpen}
+            >
+              <Globe className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              <span className="text-sm leading-none">{currentLanguage?.flag || '🌐'}</span>
+              <span className="hidden md:inline font-bold text-[11px] text-gray-800">
+                {currentLanguage?.nativeName || 'العربية'}
+              </span>
+              <span className="md:hidden font-bold text-[11px] uppercase text-gray-800">
+                {currentLanguage?.code || 'ar'}
+              </span>
+              <ChevronDown className={`w-3 h-3 text-gray-400 transition-transform duration-200 ${langDropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {langDropdownOpen && (
+              <div
+                className="absolute end-0 mt-2 w-52 bg-white rounded-2xl shadow-xl border border-gray-100 py-1.5 z-50 animate-in fade-in-50 zoom-in-95"
+              >
+                <div className="px-3 py-1.5 border-b border-gray-100 flex items-center justify-between">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                    {lang === 'ar' ? 'اختر لغة المنصة' : 'Select Language'}
+                  </p>
+                  <Globe className="w-3 h-3 text-gray-400" />
+                </div>
+                <div className="py-1">
+                  {languages.map((l) => {
+                    const isSelected = l.code === lang;
+                    return (
+                      <button
+                        key={l.code}
+                        type="button"
+                        onClick={() => {
+                          setLang(l.code);
+                          setLangDropdownOpen(false);
+                        }}
+                        className={`w-full flex items-center justify-between px-3 py-2 text-xs transition cursor-pointer ${
+                          isSelected
+                            ? 'bg-emerald-50 text-emerald-900 font-bold'
+                            : 'text-gray-700 hover:bg-gray-50 font-medium'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 text-start">
+                          <span className="text-base leading-none">{l.flag}</span>
+                          <div>
+                            <div className="font-bold leading-tight">{l.nativeName}</div>
+                            <div className="text-[10px] text-gray-400 leading-none">{l.name}</div>
+                          </div>
+                        </div>
+                        {isSelected && (
+                          <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Visible Cart Icon with Counter Badge */}
           <button
@@ -621,6 +681,40 @@ export default function Navbar() {
                 <span>{t('adminPortal')}</span>
               </Link>
             )}
+          </div>
+
+          {/* Mobile Language Switcher Section (All 6 Languages) */}
+          <div className="pt-3 border-t border-gray-100">
+            <p className="text-[11px] font-bold text-gray-500 mb-2 flex items-center gap-1.5 px-1">
+              <Globe className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              <span>{lang === 'ar' ? 'لغة المنصة / Platform Language' : 'Platform Language'}</span>
+            </p>
+            <div className="grid grid-cols-2 gap-1.5">
+              {languages.map((l) => {
+                const isSelected = l.code === lang;
+                return (
+                  <button
+                    key={l.code}
+                    type="button"
+                    onClick={() => {
+                      setLang(l.code);
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`flex items-center justify-between px-2.5 py-2 rounded-xl text-xs transition cursor-pointer ${
+                      isSelected
+                        ? 'bg-emerald-600 text-white font-bold shadow-xs'
+                        : 'bg-gray-50 hover:bg-gray-100 text-gray-700 font-medium border border-gray-200/80'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-sm">{l.flag}</span>
+                      <span className="truncate">{l.nativeName}</span>
+                    </div>
+                    {isSelected && <Check className="w-3.5 h-3.5 shrink-0" />}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Mobile Footer Actions */}
