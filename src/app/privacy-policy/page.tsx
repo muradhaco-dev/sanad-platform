@@ -45,10 +45,10 @@ export default function PrivacyPolicyPage() {
             <section className="space-y-3 bg-blue-50/50 p-5 rounded-2xl border border-blue-100">
               <h2 className="text-lg font-bold text-blue-950 flex items-center gap-2">
                 <ShieldCheck className="w-5 h-5 text-blue-600" />
-                <span>3. أمان بيانات البطاقات والمدفوعات</span>
+                <span>3. أمان الحوالات والمدفوعات المحلية المباشرة</span>
               </h2>
               <p className="text-slate-700">
-                <strong>لا نقوم على الإطلاق بجمع أو تخزين أرقام بطاقات الائتمان أو رموز الأمان (CVV) على خوادمنا.</strong> تتم جميع عمليات معالجة الدفع عبر نافذة مشفرة تابعة لـ <strong>Lemon Squeezy</strong> المعتمدة والمتوافقة مع أعلى معايير أمان بطاقات الدفع PCI-DSS Level 1.
+                <strong>تتم جميع الحوالات المالية بشكل مباشر ومستقل</strong> عبر شبكات الحوالات المحلية المعتمدة في سوريا (الهرم للحوالات، شركة الفؤاد، سيريتل كاش، وشام كاش). لا يتم تخزين أو طلب أي بيانات بطاقات ائتمانية أجنبية على خوادم المنصة.
               </p>
             </section>
 
@@ -99,10 +99,10 @@ export default function PrivacyPolicyPage() {
             <section className="space-y-3 bg-blue-50/50 p-5 rounded-2xl border border-blue-100">
               <h2 className="text-lg font-bold text-blue-950 flex items-center gap-2">
                 <ShieldCheck className="w-5 h-5 text-blue-600" />
-                <span>3. Payment Card Data Security</span>
+                <span>3. Direct Local Remittance Security</span>
               </h2>
               <p className="text-slate-700">
-                <strong>We never collect, store, or view full credit card numbers or CVV codes on our infrastructure.</strong> Payments are collected directly by our authorized Merchant of Record, <strong>Lemon Squeezy</strong>, adhering to strict PCI-DSS Level 1 compliance standards and end-to-end 256-bit encryption.
+                <strong>We never collect or store foreign credit card credentials.</strong> All transactions are conducted via direct, verifiable local remittances within Syria (Al-Haram, Al-Fouad, Syriatel Cash, and Cham Cash) directly between expat buyers and Syrian sellers.
               </p>
             </section>
 

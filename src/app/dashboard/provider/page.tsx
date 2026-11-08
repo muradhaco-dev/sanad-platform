@@ -218,7 +218,7 @@ export default function ProviderDashboard() {
               <Truck className="w-12 h-12 text-gray-300 mx-auto mb-2" />
               <h3 className="text-base font-bold text-gray-800">لا توجد طلبات مطابقة للفلتر المحدد</h3>
               <p className="text-xs text-gray-500 mt-1">
-                بمجرد قيام المغترب بالدفع عبر Lemon Squeezy سيهبط الطلب هنا آلياً
+                بمجرد قيام المغترب بإرسال إشعار الحوالة المحلية سيهبط الطلب هنا آلياً للمطابقة
               </p>
             </div>
           ) : (

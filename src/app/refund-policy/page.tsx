@@ -60,7 +60,7 @@ export default function RefundPolicyPage() {
             <section className="space-y-3 bg-slate-50 p-5 rounded-2xl border border-slate-200">
               <h2 className="text-lg font-bold text-slate-900">4. مدة معالجة وتحويل المبلغ المسترد</h2>
               <p className="text-slate-600">
-                بمجرد الموافقة على طلب الاسترداد، تتم معالجة المبلغ عبر <strong>Lemon Squeezy</strong> ويُعاد تلقائياً إلى بطاقتك الائتمانية أو حسابك البنكي الأصلي في غضون <strong>3 إلى 7 أيام عمل</strong> وفقاً للبنك المصدر لبطاقتك.
+                بمجرد الموافقة على طلب الاسترداد، تتم تسوية المبلغ مباشرة بالتنسيق مع البائع وإعادة الحوالة عبر القناة المحلية المختارة (الهرم، الفؤاد، سيريتل كاش، أو شام كاش) خلال <strong>24 إلى 48 ساعة</strong>.
               </p>
             </section>
           </div>
@@ -93,14 +93,14 @@ export default function RefundPolicyPage() {
                 <br />
                 <span className="font-mono text-emerald-700 font-bold">refunds@sanadstore.com</span>
                 <br />
-                Include your Lemon Squeezy Order Number and purchase email address.
+                Include your Sanad Order Number, receipt number, and purchase email address.
               </p>
             </section>
 
             <section className="space-y-3 bg-slate-50 p-5 rounded-2xl border border-slate-200">
               <h2 className="text-lg font-bold text-slate-900">4. Processing & Timeline</h2>
               <p className="text-slate-600">
-                Approved refunds are processed through our Merchant of Record, <strong>Lemon Squeezy</strong>, and credited back to the original payment method within <strong>3 to 7 business days</strong> depending on your banking institution.
+                Approved refunds are coordinated directly with the vendor and settled via the chosen local transfer rail (Al-Haram, Al-Fouad, Syriatel Cash, or Cham Cash) within <strong>24 to 48 hours</strong>.
               </p>
             </section>
           </div>

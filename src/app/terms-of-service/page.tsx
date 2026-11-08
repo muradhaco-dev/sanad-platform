@@ -44,9 +44,9 @@ export default function TermsOfServicePage() {
             </section>
 
             <section className="space-y-3">
-              <h2 className="text-lg font-bold text-slate-900">3. معالجة المدفوعات والتاجر المسجل (Merchant of Record)</h2>
+              <h2 className="text-lg font-bold text-slate-900">3. شبكة الحوالات والمدفوعات المحلية المباشرة</h2>
               <p>
-                تتم معالجة جميع المعاملات المالية والمدفوعات الإلكترونية بواسطة شريكنا المعتمد <strong>Lemon Squeezy</strong> كتاجر مسجل رسمي (Merchant of Record). تتولى Lemon Squeezy تحصيل الضرائب والامتثال المالي وحماية بيانات الدفع المصرفية وفقاً لأعلى معايير PCI-DSS وتشفير 256-bit SSL. نحن لا نخزن تفاصيل بطاقتك الائتمانية الكاملة على خوادمنا.
+                تتم جميع المعاملات المالية عبر شبكات الحوالات والتحويل المالي المحلية المعتمدة في سوريا (الهرم للحوالات، شركة الفؤاد، سيريتل كاش، وشام كاش) بين المشتري المغترب والتاجر المحلي مباشرة. يتم إدخال رقم إشعار الحوالة الصادر من شركة الصرافة للتحقق والمطابقة قبل تجهيز السلع وتسليمها للأهل.
               </p>
             </section>
 
@@ -100,9 +100,9 @@ export default function TermsOfServicePage() {
             </section>
 
             <section className="space-y-3">
-              <h2 className="text-lg font-bold text-slate-900">3. Merchant of Record & Payment Processing</h2>
+              <h2 className="text-lg font-bold text-slate-900">3. Direct Local Remittance Processing</h2>
               <p>
-                Our order process is conducted by our authorized online reseller and Merchant of Record, <strong>Lemon Squeezy</strong>. Lemon Squeezy manages customer service inquiries, billing compliance, and returns. All card transactions are encrypted with bank-grade 256-bit SSL protocols. We never store or handle your full credit card credentials on our servers.
+                All transactions are conducted directly between expatriate buyers and verified local merchants in Syria via approved remittance rails (Al-Haram, Al-Fouad, Syriatel Cash, and Cham Cash). Buyers provide the official transfer voucher number upon checkout for verification prior to dispatch.
               </p>
             </section>
 

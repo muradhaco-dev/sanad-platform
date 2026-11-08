@@ -51,13 +51,12 @@ npm run dev
 عندما تكون جاهزاً لربط قاعدة البيانات وبوابة الدفع الحقيقية، قم بتعديل ملف `.env.local`:
 
 ```env
-# 1. Supabase
+# 1. Supabase (Database, Auth & Storage)
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOi...
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOi...
 
-# 2. Lemon Squeezy
-LEMON_SQUEEZY_API_KEY=your_api_key
-LEMON_SQUEEZY_WEBHOOK_SECRET=your_secret
-NEXT_PUBLIC_LEMON_SQUEEZY_STORE_URL=https://sanad-relief.lemonsqueezy.com/buy/variant-id
+# 2. Local Syrian Remittances
+# Direct transfers between expats and merchants via:
+# Al-Haram, Al-Fouad, Syriatel Cash, and Cham Cash
 ```

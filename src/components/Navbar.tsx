@@ -166,12 +166,14 @@ export default function Navbar() {
 
   return (
     <header className="sticky top-0 z-50 w-full bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-2xs">
-      {/* Top Banner: One-time purchase transparency */}
-      <div className="bg-slate-900 text-slate-200 text-[11px] sm:text-xs py-1.5 px-3 sm:px-4 text-center flex items-center justify-center gap-1.5 sm:gap-2 font-medium">
+      {/* Top Banner: Local Humanitarian Transfer Model */}
+      <div className="bg-slate-900 text-slate-200 text-[11px] sm:text-xs py-1.5 px-3 sm:px-4 text-center flex items-center justify-center gap-1.5 sm:gap-2 font-medium tracking-wide">
         <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-        <span className="truncate">{t('oneTimePayment')}</span>
-        <span className="hidden sm:inline text-slate-500">•</span>
-        <span className="hidden sm:inline text-slate-400">{t('securePayment')}</span>
+        <span className="truncate">
+          {lang === 'ar'
+            ? 'دعم مباشر • بدون رسوم مخفية • تحويلات محلية آمنة 100%'
+            : 'Direct Support • No Hidden Fees • 100% Secure Local Transfers'}
+        </span>
       </div>
 
       <nav className="w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2 sm:gap-4">
