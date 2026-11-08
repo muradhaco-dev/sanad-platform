@@ -42,6 +42,35 @@ export default function Navbar() {
 
   // Helper to fetch user's strict role from Supabase database profiles table
   const fetchUserRole = async (userId: string, metadataRole?: string) => {
+    // Check if a role was selected before Google login
+    if (typeof window !== 'undefined') {
+      const storedRole =
+        localStorage.getItem('sanad_selected_role') ||
+        localStorage.getItem('selected_role') ||
+        localStorage.getItem('sanad_signup_role');
+
+      if (storedRole) {
+        const targetRole: UserRole = storedRole === 'vendor' ? 'vendor' : 'customer';
+        setUserRole(targetRole);
+        try {
+          await supabase.from('profiles').upsert({
+            id: userId,
+            role: targetRole,
+            updated_at: new Date().toISOString(),
+          });
+          await supabase.auth.updateUser({
+            data: { role: targetRole },
+          });
+          localStorage.removeItem('sanad_selected_role');
+          localStorage.removeItem('selected_role');
+          localStorage.removeItem('sanad_signup_role');
+        } catch (e) {
+          console.warn('Navbar role sync error:', e);
+        }
+        return;
+      }
+    }
+
     try {
       const { data, error } = await supabase
         .from('profiles')

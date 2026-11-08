@@ -86,6 +86,12 @@ export default function SignUpPage() {
 
   const handleGoogleSignIn = async () => {
     try {
+      const selectedRole = role === 'vendor' ? 'vendor' : 'expat';
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('sanad_selected_role', selectedRole);
+        localStorage.setItem('selected_role', selectedRole);
+        localStorage.setItem('sanad_signup_role', selectedRole);
+      }
       await signInWithGoogle();
     } catch (err: any) {
       setErrorMsg(err.message || 'Google Sign-in failed');

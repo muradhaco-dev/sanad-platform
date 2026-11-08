@@ -10,12 +10,17 @@ import {
   Lock,
   ArrowRight,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  User,
+  Store
 } from 'lucide-react';
 
 export default function LoginPage() {
   const { t, lang } = useLanguage();
   const router = useRouter();
+
+  // Role Selection for Google OAuth & Redirects
+  const [selectedRole, setSelectedRole] = useState<'expat' | 'vendor'>('expat');
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -41,6 +46,11 @@ export default function LoginPage() {
 
   const handleGoogleSignIn = async () => {
     try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('sanad_selected_role', selectedRole);
+        localStorage.setItem('selected_role', selectedRole);
+        localStorage.setItem('sanad_signup_role', selectedRole);
+      }
       await signInWithGoogle();
     } catch (err: any) {
       setErrorMsg(err.message || 'Google sign-in failed');
@@ -70,6 +80,40 @@ export default function LoginPage() {
             <span>{errorMsg}</span>
           </div>
         )}
+
+        {/* Role Selector */}
+        <div className="space-y-1.5">
+          <label className="block text-xs font-bold text-slate-700">
+            {lang === 'ar' ? 'الدخول كـ:' : 'Sign in as:'}
+          </label>
+          <div className="grid grid-cols-2 gap-2 p-1.5 bg-slate-100 rounded-2xl">
+            <button
+              type="button"
+              onClick={() => setSelectedRole('expat')}
+              className={`py-2.5 px-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                selectedRole === 'expat'
+                  ? 'bg-white text-emerald-800 shadow-sm border border-slate-200'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <User className="w-4 h-4 text-emerald-600" />
+              <span>{lang === 'ar' ? 'مغترب (مشتري)' : 'Expat (Buyer)'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSelectedRole('vendor')}
+              className={`py-2.5 px-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                selectedRole === 'vendor'
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Store className="w-4 h-4" />
+              <span>{lang === 'ar' ? 'تاجر (بائع محلي)' : 'Vendor (Seller)'}</span>
+            </button>
+          </div>
+        </div>
 
         {/* Google OAuth Button */}
         <button

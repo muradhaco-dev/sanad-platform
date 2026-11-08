@@ -36,8 +36,76 @@ export default function CustomerDashboardPage() {
   const [orders, setOrders] = useState<StoreOrder[]>([]);
 
   useEffect(() => {
+    const syncRoleAndRedirect = async (sessionUser: any): Promise<boolean> => {
+      if (typeof window === 'undefined' || !sessionUser) return false;
+
+      // Check if a role was selected before Google login
+      const storedRole =
+        localStorage.getItem('sanad_selected_role') ||
+        localStorage.getItem('selected_role') ||
+        localStorage.getItem('sanad_signup_role');
+
+      if (storedRole) {
+        const targetRole = storedRole === 'vendor' ? 'vendor' : 'customer';
+
+        try {
+          // 1. Update user's role in the 'profiles' table in Supabase
+          const { error: profileErr } = await supabase.from('profiles').upsert({
+            id: sessionUser.id,
+            email: sessionUser.email,
+            role: targetRole,
+            full_name: sessionUser.user_metadata?.full_name || sessionUser.email?.split('@')[0],
+            updated_at: new Date().toISOString(),
+          });
+
+          if (profileErr) {
+            console.warn('Profile upsert warning:', profileErr);
+          }
+
+          // 2. Update auth user metadata
+          await supabase.auth.updateUser({
+            data: { role: targetRole },
+          });
+
+          // 3. Clear localStorage as required
+          localStorage.removeItem('sanad_selected_role');
+          localStorage.removeItem('selected_role');
+          localStorage.removeItem('sanad_signup_role');
+
+          // If vendor, route directly to vendor dashboard
+          if (targetRole === 'vendor') {
+            router.push('/vendor');
+            return true;
+          }
+        } catch (err) {
+          console.error('Error updating role in profiles table:', err);
+        }
+      } else {
+        // If no pending role in localStorage, check their existing role from profiles table
+        try {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', sessionUser.id)
+            .single();
+
+          if (profile?.role === 'vendor') {
+            router.push('/vendor');
+            return true;
+          }
+        } catch (err) {
+          console.warn('Could not check existing profile role:', err);
+        }
+      }
+
+      return false;
+    };
+
     const fetchOrders = async (sessionUser: any) => {
       try {
+        const isRedirecting = await syncRoleAndRedirect(sessionUser);
+        if (isRedirecting) return;
+
         const { data: dbOrders, error } = await supabase
           .from('orders')
           .select('*')

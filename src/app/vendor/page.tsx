@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -36,6 +36,7 @@ import {
   FileText,
   AlertCircle,
   Eye,
+  Upload,
 } from 'lucide-react';
 
 export default function VendorDashboardPage() {
@@ -69,11 +70,119 @@ export default function VendorDashboardPage() {
     description_ar: '',
     price_usd: '',
     category: 'food' as 'food' | 'health' | 'energy' | 'winter',
-    image_url: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=800&q=80',
+    image_url: '',
     latitude: 33.5138,
     longitude: 36.2765,
     location_name: 'دمشق، كفرسوسة والبرامكة',
   });
+
+  // Supabase Storage 'product-images' Upload State & File Input Ref
+  const [imageUploading, setImageUploading] = useState(false);
+  const [imageUploadError, setImageUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Automatic Upload Handler to Supabase Storage 'product-images'
+  const uploadProductImage = async (file: File) => {
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setImageUploadError(
+        lang === 'ar'
+          ? 'يرجى اختيار ملف صورة صالح (JPG, PNG, WebP)'
+          : 'Please select a valid image file (JPG, PNG, WebP)'
+      );
+      return;
+    }
+
+    setImageUploading(true);
+    setImageUploadError(null);
+
+    try {
+      const ext = file.name ? file.name.split('.').pop() : 'jpg';
+      const cleanName = (file.name || 'image').replace(/[^a-zA-Z0-9.-]/g, '_');
+      const fileName = `prod-${Date.now()}-${Math.random().toString(36).substring(2, 7)}-${cleanName}`;
+
+      // 1. First attempt: Direct client upload to Supabase Storage 'product-images' bucket
+      const { data: uploadData, error: uploadErr } = await supabase.storage
+        .from('product-images')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: true,
+          contentType: file.type || 'image/jpeg',
+        });
+
+      let finalPublicUrl = '';
+
+      if (!uploadErr && uploadData) {
+        const { data: publicUrlData } = supabase.storage
+          .from('product-images')
+          .getPublicUrl(fileName);
+        finalPublicUrl = publicUrlData.publicUrl;
+      } else {
+        // 2. Reliable Fallback to server-side /api/upload endpoint (Service Role Key)
+        console.warn('Storage direct upload fallback to /api/upload:', uploadErr?.message);
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('bucket', 'product-images');
+
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!res.ok) {
+          const errJson = await res.json().catch(() => ({}));
+          throw new Error(errJson.error || 'Failed to upload image to product-images');
+        }
+
+        const json = await res.json();
+        finalPublicUrl = json.publicUrl;
+      }
+
+      if (finalPublicUrl) {
+        setProductForm((prev) => ({ ...prev, image_url: finalPublicUrl }));
+        showToast(
+          lang === 'ar'
+            ? 'تم رفع صورة المنتج إلى Supabase Storage بنجاح!'
+            : 'Image uploaded to Supabase Storage successfully!'
+        );
+      }
+    } catch (err: any) {
+      console.error('Image upload failed:', err);
+      setImageUploadError(
+        err.message ||
+          (lang === 'ar'
+            ? 'فشل رفع الصورة، يرجى المحاولة مرة أخرى'
+            : 'Failed to upload image')
+      );
+    } finally {
+      setImageUploading(false);
+    }
+  };
+
+  // Clipboard Paste support (Ctrl + V directly in the modal)
+  useEffect(() => {
+    if (!isProductModalOpen) return;
+
+    const handleWindowPaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+          const file = items[i].getAsFile();
+          if (file) {
+            e.preventDefault();
+            uploadProductImage(file);
+            break;
+          }
+        }
+      }
+    };
+
+    window.addEventListener('paste', handleWindowPaste);
+    return () => window.removeEventListener('paste', handleWindowPaste);
+  }, [isProductModalOpen, lang]);
 
   // 2. Orders Management State (Syrian Local Remittance Verifications)
   const [orders, setOrders] = useState<VendorOrderItem[]>([]);
@@ -228,6 +337,8 @@ export default function VendorDashboardPage() {
   // ================= PRODUCTS MANAGEMENT ACTIONS =================
   const handleOpenAddProduct = () => {
     setEditingProductId(null);
+    setImageUploadError(null);
+    setImageUploading(false);
     setProductForm({
       title_en: '',
       title_ar: '',
@@ -235,7 +346,7 @@ export default function VendorDashboardPage() {
       description_ar: '',
       price_usd: '',
       category: 'food',
-      image_url: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=800&q=80',
+      image_url: '',
       latitude: 33.5138,
       longitude: 36.2765,
       location_name: 'دمشق، كفرسوسة والبرامكة',
@@ -245,6 +356,8 @@ export default function VendorDashboardPage() {
 
   const handleOpenEditProduct = (prod: Product) => {
     setEditingProductId(prod.id);
+    setImageUploadError(null);
+    setImageUploading(false);
     setProductForm({
       title_en: prod.title_en,
       title_ar: prod.title_ar,
@@ -264,6 +377,13 @@ export default function VendorDashboardPage() {
     e.preventDefault();
     if (!productForm.title_ar || !productForm.price_usd) {
       alert(lang === 'ar' ? 'يرجى إدخال اسم المنتج والسعر' : 'Please provide product title and price');
+      return;
+    }
+
+    if (!productForm.image_url) {
+      setImageUploadError(
+        lang === 'ar' ? 'يرجى رفع صورة للمنتج أولاً' : 'Please upload a product image first'
+      );
       return;
     }
 
@@ -1460,17 +1580,144 @@ export default function VendorDashboardPage() {
                 />
               </div>
 
+              {/* MODERN FILE UPLOAD COMPONENT (FILE SELECT + CLIPBOARD PASTE + DRAG & DROP) */}
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">
-                  {lang === 'ar' ? 'رابط صورة المنتج (Image URL)' : 'Image URL'}
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-bold text-gray-700">
+                    {lang === 'ar' ? 'صورة المنتج *' : 'Product Image *'}
+                  </label>
+                  <span className="text-[10px] text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
+                    <span>📋</span>
+                    <span>{lang === 'ar' ? 'يدعم اللصق المباشر (Ctrl+V)' : 'Clipboard Paste (Ctrl+V) Supported'}</span>
+                  </span>
+                </div>
+
+                {/* Hidden File Input */}
                 <input
-                  type="url"
-                  value={productForm.image_url}
-                  onChange={(e) => setProductForm({ ...productForm, image_url: e.target.value })}
-                  placeholder="https://..."
-                  className="w-full text-xs px-3 py-2.5 rounded-xl border border-gray-300 focus:ring-1 focus:ring-amber-500"
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files[0]) {
+                      uploadProductImage(e.target.files[0]);
+                    }
+                  }}
                 />
+
+                {/* Modern Dropzone & Preview Box */}
+                <div
+                  onClick={() => !imageUploading && fileInputRef.current?.click()}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                      uploadProductImage(e.dataTransfer.files[0]);
+                    }
+                  }}
+                  className={`relative border-2 border-dashed rounded-2xl p-4 transition-all cursor-pointer flex flex-col items-center justify-center min-h-[150px] text-center ${
+                    imageUploading
+                      ? 'border-amber-400 bg-amber-50/50'
+                      : productForm.image_url
+                      ? 'border-emerald-300 bg-emerald-50/20 hover:border-emerald-400'
+                      : 'border-gray-300 bg-slate-50 hover:border-amber-500 hover:bg-amber-50/20'
+                  }`}
+                >
+                  {imageUploading ? (
+                    <div className="py-4 space-y-2 flex flex-col items-center justify-center">
+                      <Loader2 className="w-8 h-8 text-amber-600 animate-spin" />
+                      <p className="text-xs font-black text-amber-900">
+                        {lang === 'ar'
+                          ? 'جاري رفع الصورة إلى Supabase Storage (product-images)...'
+                          : 'Uploading image to Supabase Storage (product-images)...'}
+                      </p>
+                      <span className="text-[10px] text-amber-700">
+                        {lang === 'ar' ? 'يرجى الانتظار بضع ثوانٍ لحفظ الصورة وتوليد الرابط العام' : 'Please wait a moment while public URL is generated'}
+                      </span>
+                    </div>
+                  ) : productForm.image_url ? (
+                    <div className="w-full flex flex-col sm:flex-row items-center gap-4">
+                      <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-xl overflow-hidden bg-gray-100 border border-gray-200 shrink-0 shadow-xs">
+                        <img
+                          src={productForm.image_url}
+                          alt="Product Preview"
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute top-1 right-1 bg-emerald-600 text-white rounded-full p-1 shadow-xs">
+                          <Check className="w-3 h-3 stroke-[3]" />
+                        </div>
+                      </div>
+
+                      <div className="flex-1 text-start space-y-2 w-full min-w-0">
+                        <div className="flex items-center gap-1.5 text-xs font-black text-emerald-800">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                          <span>{lang === 'ar' ? 'تم الرفع إلى Supabase Storage بنجاح' : 'Uploaded to Supabase Storage'}</span>
+                        </div>
+
+                        <p
+                          className="text-[11px] font-mono text-gray-600 bg-white p-2 rounded-lg border border-gray-200 truncate select-all"
+                          dir="ltr"
+                          title={productForm.image_url}
+                        >
+                          {productForm.image_url}
+                        </p>
+
+                        <div className="flex items-center gap-2 pt-0.5">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              fileInputRef.current?.click();
+                            }}
+                            className="px-3 py-1 bg-white hover:bg-gray-100 text-gray-800 rounded-lg text-xs font-bold border border-gray-200 shadow-2xs transition cursor-pointer"
+                          >
+                            {lang === 'ar' ? 'استبدال الصورة' : 'Replace Image'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setProductForm((prev) => ({ ...prev, image_url: '' }));
+                            }}
+                            className="px-3 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-xs font-bold transition cursor-pointer"
+                          >
+                            {lang === 'ar' ? 'حذف' : 'Remove'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="py-2 space-y-2 flex flex-col items-center">
+                      <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center shadow-xs">
+                        <Upload className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-gray-800">
+                          {lang === 'ar'
+                            ? 'انقر لاختيار ملف من جهازك، أو اسحب الصورة وأفلتها هنا'
+                            : 'Click to browse image or drag and drop here'}
+                        </p>
+                        <p className="text-[11px] text-gray-500 mt-0.5">
+                          {lang === 'ar'
+                            ? 'أو انسخ أي صورة من جهازك والصقها مباشرة هنا بالضغط على (Ctrl + V)'
+                            : 'Or copy any image and press (Ctrl + V) to paste directly'}
+                        </p>
+                      </div>
+                      <span className="text-[10px] text-gray-400 font-medium">JPG, PNG, WebP (تُحفظ تلقائياً في سحابة product-images)</span>
+                    </div>
+                  )}
+                </div>
+
+                {imageUploadError && (
+                  <div className="mt-1.5 p-2 bg-rose-50 text-rose-700 rounded-lg text-xs flex items-center gap-1.5 border border-rose-200">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    <span>{imageUploadError}</span>
+                  </div>
+                )}
               </div>
 
               {/* LOCATION PICKER & MAP COMPONENT (GPS COORDINATES IN SYRIA) */}
