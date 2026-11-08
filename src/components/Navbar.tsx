@@ -175,22 +175,13 @@ export default function Navbar() {
       </div>
 
       <nav className="w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2 sm:gap-4">
-        {/* Brand Logo */}
-        <Link href="/" className="flex items-center gap-2 sm:gap-2.5 group shrink-0">
-          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-emerald-600 flex items-center justify-center text-white font-black text-base sm:text-lg shadow-md shadow-emerald-200 group-hover:scale-105 transition-transform">
-            S
-          </div>
-          <div>
-            <div className="text-base sm:text-lg font-black text-gray-900 tracking-tight flex items-center gap-1.5">
-              <span>{t('storeName')}</span>
-              <span className="text-[9px] sm:text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.2 rounded font-bold">
-                1-TIME
-              </span>
-            </div>
-            <p className="text-[10px] text-gray-400 font-medium hidden sm:block">
-              {lang === 'ar' ? 'بضائع أساسية • بدون اشتراكات' : 'Direct Goods • No Subscriptions'}
-            </p>
-          </div>
+        {/* Brand Logo Image */}
+        <Link href="/" className="flex items-center group shrink-0 py-1" aria-label="Sanad Home">
+          <img
+            src="/assets/logo.png"
+            alt="سَنَد - Sanad Platform"
+            className="h-10 w-auto md:h-12 object-contain rounded-xl shadow-xs group-hover:scale-105 transition-transform duration-200"
+          />
         </Link>
 
         {/* Desktop Navigation Links */}

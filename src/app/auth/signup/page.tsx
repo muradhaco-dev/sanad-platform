@@ -103,11 +103,12 @@ export default function SignUpPage() {
       <div className="max-w-md w-full bg-white rounded-2xl sm:rounded-3xl p-5 sm:p-8 border border-slate-200/80 shadow-lg sm:shadow-xl space-y-5 sm:space-y-6">
         {/* Brand Header */}
         <div className="text-center space-y-1">
-          <Link
-            href="/"
-            className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-emerald-600 text-white font-black text-xl shadow-md shadow-emerald-200 mb-2"
-          >
-            S
+          <Link href="/" className="inline-flex items-center justify-center mb-4 group" aria-label="Sanad Home">
+            <img
+              src="/assets/logo.png"
+              alt="سَنَد - Sanad Platform"
+              className="h-16 w-auto object-contain rounded-2xl shadow-md group-hover:scale-105 transition-transform duration-200"
+            />
           </Link>
           <h2 className="text-2xl font-black text-slate-900 tracking-tight">
             {isSubmitted

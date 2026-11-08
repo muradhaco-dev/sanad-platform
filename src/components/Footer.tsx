@@ -24,12 +24,14 @@ export default function Footer() {
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 sm:gap-10">
           {/* Brand & Mission */}
           <div className="sm:col-span-2 space-y-4">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center text-white font-black text-base">
-                S
-              </div>
-              <span className="text-lg sm:text-xl font-black text-white">{t('storeName')}</span>
-            </div>
+            {/* Brand Logo Image */}
+            <Link href="/" className="inline-block group" aria-label="Sanad Home">
+              <img
+                src="/assets/logo.png"
+                alt="سَنَد - Sanad Platform"
+                className="h-10 w-auto md:h-12 object-contain rounded-xl shadow-xs group-hover:scale-105 transition-transform duration-200"
+              />
+            </Link>
             <p className="text-xs text-slate-400 leading-relaxed max-w-md">
               {lang === 'ar'
                 ? 'متجر إلكتروني مخصص لبيع وتوصيل الاحتياجات الأساسية والباقات الحيوية لمرة واحدة فقط. نلتزم بأعلى معايير الشفافية ولا نفرض أي اشتراكات دورية أو رسوم خفية.'
