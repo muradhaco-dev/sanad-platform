@@ -1,12 +1,6 @@
 import { notFound } from 'next/navigation';
-import { STORE_PRODUCTS, getProductBySlug } from '@/lib/products';
+import { supabase } from '@/lib/supabaseClient';
 import ProductDetailClient from '@/components/ProductDetailClient';
-
-export function generateStaticParams() {
-  return STORE_PRODUCTS.map((product) => ({
-    id: product.slug,
-  }));
-}
 
 export default async function ProductDetailPage({
   params,
@@ -14,7 +8,24 @@ export default async function ProductDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const product = getProductBySlug(id);
+
+  // Query Supabase directly by slug or UUID
+  const { data: productBySlug } = await supabase
+    .from('products')
+    .select('*')
+    .eq('slug', id)
+    .single();
+
+  let product = productBySlug;
+
+  if (!product) {
+    const { data: productById } = await supabase
+      .from('products')
+      .select('*')
+      .eq('id', id)
+      .single();
+    product = productById;
+  }
 
   if (!product) {
     notFound();

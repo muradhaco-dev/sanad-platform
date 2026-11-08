@@ -32,51 +32,54 @@ export default function CustomerDashboardPage() {
   const [activeTab, setActiveTab] = useState<'orders' | 'methods' | 'account'>('orders');
   const [copiedReceipt, setCopiedReceipt] = useState<string | null>(null);
 
-  // Realistic sample order history for one-time purchases with Syrian Local Remittances
-  const [orders, setOrders] = useState<StoreOrder[]>([
-    {
-      id: 'ord-8921',
-      order_number: 'SND-90184-SY',
-      user_email: '',
-      product_id: 'prod-family-nutrition-box',
-      product_title_en: 'Comprehensive Family Nutrition Box',
-      product_title_ar: 'السلة الغذائية العائلية الشاملة',
-      amount_usd: 55,
-      payment_method: 'cham_cash',
-      receipt_number: 'CHAM-8841920-DM',
-      recipient_name: 'أم عمار المحمد',
-      recipient_phone: '0944123456',
-      delivery_city: 'دمشق',
-      delivery_address: 'المزة فيلات غربية - بناء النرجس',
-      status: 'completed',
-      created_at: '2026-11-02T14:30:00Z',
-    },
-    {
-      id: 'ord-8945',
-      order_number: 'SND-90220-SY',
-      user_email: '',
-      product_id: 'prod-chronic-care-medical-kit',
-      product_title_en: 'Chronic Care & Senior Medical Kit',
-      product_title_ar: 'باقة الرعاية الصحية وأدوية كبار السن',
-      amount_usd: 42,
-      payment_method: 'al_haram',
-      receipt_number: 'HRM-592810-SY',
-      recipient_name: 'أبو أحمد الحلبي',
-      recipient_phone: '0933556778',
-      delivery_city: 'حلب',
-      delivery_address: 'الفرقان - شارع الشرطة',
-      status: 'pending_verification',
-      created_at: '2026-11-05T09:15:00Z',
-    },
-  ]);
+  // Real orders fetched directly from Supabase instance (No fake data)
+  const [orders, setOrders] = useState<StoreOrder[]>([]);
 
   useEffect(() => {
+    const fetchOrders = async (sessionUser: any) => {
+      try {
+        const { data: dbOrders, error } = await supabase
+          .from('orders')
+          .select('*')
+          .or(`customer_id.eq.${sessionUser.id},user_id.eq.${sessionUser.id},customer_email.eq.${sessionUser.email}`)
+          .order('created_at', { ascending: false });
+
+        if (!error && dbOrders) {
+          const mapped: StoreOrder[] = dbOrders.map((o: any) => ({
+            id: o.id,
+            order_number: o.order_number,
+            user_email: o.customer_email || sessionUser.email,
+            product_id: o.product_id || '',
+            product_title_en: o.product_title || 'Syrian Relief Parcel',
+            product_title_ar: o.product_title || 'طرد وسلة إغاثة سورية',
+            amount_usd: Number(o.total_amount) || 0,
+            payment_method: o.payment_method || 'الهرم للحوالات',
+            receipt_number: o.receipt_number || '',
+            recipient_name: o.recipient_name || o.customer_name || 'الأهل في سوريا',
+            recipient_phone: o.recipient_phone || o.customer_phone || '',
+            delivery_city: o.city || 'دمشق',
+            delivery_address: o.delivery_address || 'دمشق، سوريا',
+            status: o.payment_status === 'completed' ? 'completed' : 'pending_verification',
+            created_at: o.created_at,
+          }));
+          setOrders(mapped);
+        } else {
+          setOrders([]);
+        }
+      } catch (err) {
+        console.warn('Failed to load orders from Supabase:', err);
+        setOrders([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) {
         router.push('/auth/login');
       } else {
         setUser(session.user);
-        setLoading(false);
+        fetchOrders(session.user);
       }
     });
 
@@ -87,7 +90,7 @@ export default function CustomerDashboardPage() {
         router.push('/auth/login');
       } else {
         setUser(session.user);
-        setLoading(false);
+        fetchOrders(session.user);
       }
     });
 

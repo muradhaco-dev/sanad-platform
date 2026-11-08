@@ -4,10 +4,12 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { useCart } from '@/lib/CartContext';
 import { supabase, signOutUser } from '@/lib/supabaseClient';
 import { UserRole } from '@/types/store';
 import {
   ShoppingBag,
+  ShoppingCart,
   Globe,
   User,
   ShieldCheck,
@@ -26,6 +28,7 @@ import {
 
 export default function Navbar() {
   const { lang, toggleLang, t } = useLanguage();
+  const { totalItems, toggleCart } = useCart();
   const pathname = usePathname();
   const router = useRouter();
 
@@ -247,6 +250,22 @@ export default function Navbar() {
           >
             <Globe className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
             <span className="uppercase text-[11px]">{t('langToggle')}</span>
+          </button>
+
+          {/* Visible Cart Icon with Counter Badge */}
+          <button
+            type="button"
+            onClick={toggleCart}
+            className="relative inline-flex items-center justify-center p-2 rounded-xl bg-emerald-50 hover:bg-emerald-100/90 text-emerald-800 border border-emerald-200 transition shadow-2xs cursor-pointer"
+            title={lang === 'ar' ? 'سلة المشتريات' : 'Shopping Cart'}
+            aria-label="Shopping Cart"
+          >
+            <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-700" />
+            {totalItems > 0 && (
+              <span className="absolute -top-1.5 -end-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs animate-in zoom-in-75">
+                {totalItems}
+              </span>
+            )}
           </button>
 
           {/* Prominent Vendor Dashboard Button (Desktop ONLY for vendor role) */}
@@ -487,6 +506,24 @@ export default function Navbar() {
               <span>{t('products')}</span>
               {lang === 'ar' ? <ChevronLeft className="w-4 h-4 text-gray-400" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
             </Link>
+
+            {/* Mobile Cart Trigger */}
+            <button
+              type="button"
+              onClick={() => {
+                setMobileMenuOpen(false);
+                toggleCart();
+              }}
+              className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold text-gray-700 hover:bg-emerald-50 hover:text-emerald-900 transition text-start cursor-pointer"
+            >
+              <span className="flex items-center gap-2">
+                <ShoppingCart className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>{lang === 'ar' ? 'سلة المشتريات' : 'Shopping Cart'}</span>
+              </span>
+              <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-black">
+                {totalItems}
+              </span>
+            </button>
 
             <Link
               href="/#about"

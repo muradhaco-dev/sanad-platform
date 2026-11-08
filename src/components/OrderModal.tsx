@@ -59,23 +59,8 @@ export default function OrderModal({ service, isOpen, onClose, onOrderSuccess }:
         throw new Error(data.error || 'فشل في حفظ الطلب');
       }
 
-      if (simulatePaid) {
-        // Immediate success in demo mode
-        onOrderSuccess(data.order.id);
-        onClose();
-      } else {
-        // Lemon Squeezy integration
-        // In real deployment, redirect to Lemon Squeezy checkout with custom data
-        const storeUrl = process.env.NEXT_PUBLIC_LEMON_SQUEEZY_STORE_URL;
-        if (storeUrl) {
-          window.location.href = `${storeUrl}?checkout[custom][order_id]=${data.order.id}`;
-        } else {
-          // If Lemon Squeezy env is not set yet, mark as created and inform user
-          alert(`تم إنشاء الطلب برقم #${data.order.id} بنجاح!\n(لتفعيل بوابة Lemon Squeezy، قم بوضع رابط متجرك في .env.local)`);
-          onOrderSuccess(data.order.id);
-          onClose();
-        }
-      }
+      onOrderSuccess(data.order.id);
+      onClose();
     } catch (err: any) {
       setError(err.message || 'حدث خطأ أثناء معالجة الطلب');
     } finally {
@@ -231,7 +216,7 @@ export default function OrderModal({ service, isOpen, onClose, onOrderSuccess }:
             <span>محاكاة دفع فوري (للعرض)</span>
           </button>
 
-          {/* Real Checkout with Lemon Squeezy */}
+          {/* Confirm Local Transfer */}
           <button
             type="button"
             disabled={loading || simulationLoading}
@@ -243,7 +228,7 @@ export default function OrderModal({ service, isOpen, onClose, onOrderSuccess }:
             ) : (
               <CheckCircle2 className="w-4 h-4" />
             )}
-            <span>دفع آمن (${service.price_usd})</span>
+            <span>تأكيد الحوالة المحلية (${service.price_usd})</span>
           </button>
         </div>
       </div>

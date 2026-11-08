@@ -168,40 +168,27 @@ export default function VendorDashboardPage() {
     checkAuthAndRole();
   }, []);
 
-  // 2. Fetch all Vendor Data directly with Supabase client (with API fallback)
+  // 2. Fetch all Vendor Data directly from Supabase (Strictly NO fake or mock data)
   const fetchVendorData = async (activeVendorId: string) => {
     setLoading(true);
     try {
-      // 1. Query Products from Supabase
-      const { data: dbProducts, error: prodErr } = await supabase
+      // 1. Query Products from Supabase directly
+      const { data: dbProducts } = await supabase
         .from('products')
         .select('*')
-        .eq('vendor_id', activeVendorId)
+        .or(`vendor_id.eq.${activeVendorId},vendor_id.is.null`)
         .order('created_at', { ascending: false });
 
-      if (!prodErr && dbProducts && dbProducts.length > 0) {
-        setProducts(dbProducts as any);
-      } else {
-        // Fallback to Next.js API route
-        const res = await fetch(`/api/vendor/products?vendor_id=${activeVendorId}`);
-        const data = await res.json();
-        if (data.products) setProducts(data.products);
-      }
+      setProducts((dbProducts as any) || []);
 
-      // 2. Query Purchased Order Items for this vendor
-      const { data: dbOrders, error: orderErr } = await supabase
+      // 2. Query Purchased Order Items from Supabase directly
+      const { data: dbOrders } = await supabase
         .from('order_items')
         .select('*')
-        .eq('vendor_id', activeVendorId)
+        .or(`vendor_id.eq.${activeVendorId},vendor_id.is.null`)
         .order('created_at', { ascending: false });
 
-      if (!orderErr && dbOrders && dbOrders.length > 0) {
-        setOrders(dbOrders as any);
-      } else {
-        const res = await fetch(`/api/vendor/orders?vendor_id=${activeVendorId}`);
-        const data = await res.json();
-        if (data.orders) setOrders(data.orders);
-      }
+      setOrders((dbOrders as any) || []);
 
       // 3. Query Syrian Payout Methods (Cham Cash)
       const { data: dbMethods } = await supabase
@@ -210,16 +197,9 @@ export default function VendorDashboardPage() {
         .eq('vendor_id', activeVendorId)
         .order('is_default', { ascending: false });
 
+      setPayoutMethods((dbMethods as any) || []);
       if (dbMethods && dbMethods.length > 0) {
-        setPayoutMethods(dbMethods as any);
         setWithdrawMethodId(dbMethods[0].id);
-      } else {
-        const res = await fetch(`/api/vendor/payout-methods?vendor_id=${activeVendorId}`);
-        const data = await res.json();
-        if (data.methods) {
-          setPayoutMethods(data.methods);
-          if (data.methods.length > 0) setWithdrawMethodId(data.methods[0].id);
-        }
       }
 
       // 4. Query Withdrawals History
@@ -229,15 +209,9 @@ export default function VendorDashboardPage() {
         .eq('vendor_id', activeVendorId)
         .order('created_at', { ascending: false });
 
-      if (dbWithdrawals && dbWithdrawals.length > 0) {
-        setWithdrawals(dbWithdrawals as any);
-      } else {
-        const res = await fetch(`/api/vendor/withdrawals?vendor_id=${activeVendorId}`);
-        const data = await res.json();
-        if (data.withdrawals) setWithdrawals(data.withdrawals);
-      }
+      setWithdrawals((dbWithdrawals as any) || []);
     } catch (err) {
-      console.error('Error loading vendor data:', err);
+      console.error('Error loading vendor data from Supabase:', err);
     } finally {
       setLoading(false);
     }
@@ -399,6 +373,14 @@ export default function VendorDashboardPage() {
         .from('order_items')
         .update({ status: newStatus })
         .eq('id', itemId);
+
+      const targetItem = orders.find((o) => o.id === itemId);
+      if (targetItem?.order_number) {
+        await supabase
+          .from('orders')
+          .update({ payment_status: newStatus })
+          .eq('order_number', targetItem.order_number);
+      }
 
       if (error) {
         await fetch('/api/vendor/orders', {
@@ -1239,7 +1221,7 @@ export default function VendorDashboardPage() {
                                           className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs whitespace-nowrap"
                                         >
                                           <CheckCircle2 className="w-3.5 h-3.5" />
-                                          <span>{lang === 'ar' ? 'تأكيد الحوالة وإكمال' : 'Verify & Complete'}</span>
+                                          <span>{lang === 'ar' ? 'تأكيد الحوالة وإكمال الطلب' : 'Verify Payment & Complete Order'}</span>
                                         </button>
                                       ) : (
                                         <div className="space-y-1">

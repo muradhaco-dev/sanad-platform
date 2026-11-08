@@ -87,12 +87,12 @@ export default function AboutUsSection() {
                 <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
                 <div>
                   <h4 className="text-xs font-bold text-slate-900 mb-0.5">
-                    {lang === 'ar' ? 'حماية مصرفية عالمية (Lemon Squeezy)' : 'Global Payment Security'}
+                    {lang === 'ar' ? 'شبكة تحويلات محلية رسمية ومباشرة' : 'Direct Syrian Remittance Rails'}
                   </h4>
                   <p className="text-[11px] text-slate-500 leading-relaxed">
                     {lang === 'ar'
-                      ? 'جميع عمليات الدفع بالبطاقات الدولية و Apple Pay معالجة وفق أحدث معايير الأمان المصرفي PCI-DSS.'
-                      : 'International credit card and Apple Pay processing governed by Lemon Squeezy Merchant of Record.'}
+                      ? 'دعم قنوات التحويل الرسمية في سوريا: شركة الهرم، الفؤاد، سيريتل كاش، وشام كاش بدون وسطاء دوليين أو بطاقات بنكية معقدة.'
+                      : 'Licensed Syrian domestic remittance rails: Al-Haram, Al-Fouad, Syriatel Cash, and Cham Cash with direct vendor handover.'}
                   </p>
                 </div>
               </div>

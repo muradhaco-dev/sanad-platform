@@ -1,9 +1,9 @@
 import { INITIAL_SERVICES, INITIAL_ORDERS } from './mockData';
 import { Service, Order, OrderStatus } from '@/types';
 
-// In-memory store for Next.js API layer
-let inMemoryServices: Service[] = [...INITIAL_SERVICES];
-let inMemoryOrders: Order[] = [...INITIAL_ORDERS];
+// In-memory store for Next.js API layer (Starts empty - real data in Supabase)
+let inMemoryServices: Service[] = [];
+let inMemoryOrders: Order[] = [];
 
 export function getServices(): Service[] {
   return inMemoryServices;
@@ -48,7 +48,7 @@ export function createOrder(data: {
     beneficiary_city: data.beneficiary_city,
     beneficiary_address: data.beneficiary_address,
     notes: data.notes || '',
-    lemon_squeezy_order_id: data.simulatePaid ? `ls_demo_${Date.now().toString().slice(-4)}` : undefined,
+    receipt_number: data.simulatePaid ? 'DEMO-RECEIPT' : undefined,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     service

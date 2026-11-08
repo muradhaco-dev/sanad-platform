@@ -2,8 +2,9 @@
 
 import Link from 'next/link';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { useCart } from '@/lib/CartContext';
+import { useRouter } from 'next/navigation';
 import { Product } from '@/types/store';
-import LemonCheckoutButton from '@/components/LemonCheckoutButton';
 import {
   ShieldCheck,
   Check,
@@ -16,16 +17,25 @@ import {
   Sparkles,
   Store,
   MapPin,
+  ShoppingCart,
+  ShoppingBag,
 } from 'lucide-react';
 
 export default function ProductDetailClient({ product }: { product: Product }) {
   const { t, lang } = useLanguage();
+  const { addToCart } = useCart();
+  const router = useRouter();
 
-  const title = lang === 'ar' ? product.title_ar : product.title_en;
-  const desc = lang === 'ar' ? product.description_ar : product.description_en;
+  const title = lang === 'ar' ? product.title_ar : product.title_en || product.title_ar;
+  const desc = lang === 'ar' ? product.description_ar : product.description_en || product.description_ar;
   const badge = lang === 'ar' ? product.badge_ar : product.badge_en;
-  const items = lang === 'ar' ? product.items_ar : product.items_en;
-  const specs = lang === 'ar' ? product.specs_ar : product.specs_en;
+  const items = (lang === 'ar' ? product.items_ar : product.items_en) || [];
+  const specs = (lang === 'ar' ? product.specs_ar : product.specs_en) || {};
+
+  const handleBuyNow = () => {
+    addToCart(product);
+    router.push('/checkout');
+  };
 
   return (
     <div className="min-h-screen bg-slate-50/60 py-6 sm:py-12 px-3 sm:px-6 lg:px-8 w-full overflow-x-hidden">
@@ -110,16 +120,28 @@ export default function ProductDetailClient({ product }: { product: Product }) {
                   </div>
                 </div>
 
-                {/* Primary Checkout Button via Syrian Local Remittance */}
-                <div className="pt-2">
-                  <LemonCheckoutButton
-                    productId={product.id}
-                    productName={title}
-                    priceUSD={product.price_usd}
-                    productImage={product.image_url}
-                    vendorId={product.vendor_id}
-                    vendorName={product.vendor_name}
-                  />
+                {/* Primary Actions: Add to Cart & Buy Now */}
+                <div className="pt-2 space-y-2.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => addToCart(product)}
+                      className="w-full py-3.5 px-4 rounded-xl bg-white border-2 border-emerald-600 hover:bg-emerald-50 text-emerald-800 font-black text-sm flex items-center justify-center gap-2 transition cursor-pointer shadow-xs"
+                    >
+                      <ShoppingCart className="w-4 h-4 text-emerald-700" />
+                      <span>{lang === 'ar' ? 'أضف إلى السلة' : 'Add to Cart'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleBuyNow}
+                      className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-700 via-emerald-600 to-teal-700 hover:from-emerald-800 hover:to-teal-800 text-white font-black text-sm flex items-center justify-center gap-2 transition shadow-md hover:shadow-lg cursor-pointer"
+                    >
+                      <ShoppingBag className="w-4 h-4" />
+                      <span>{lang === 'ar' ? 'شراء فوري (حوالة محلية)' : 'Buy Now (Local Transfer)'}</span>
+                    </button>
+                  </div>
+
                   <p className="text-[11px] text-center text-slate-400 mt-2 flex items-center justify-center gap-1.5">
                     <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
                     <span>

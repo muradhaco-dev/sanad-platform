@@ -226,9 +226,9 @@ export default function ExpatriateDashboard() {
                                 dateStyle: 'medium'
                               })}
                             </span>
-                            {order.lemon_squeezy_order_id && (
-                              <span className="text-[10px] bg-gray-100 px-1.5 py-0.5 rounded font-mono text-gray-600">
-                                Lemon: {order.lemon_squeezy_order_id}
+                            {order.receipt_number && (
+                              <span className="text-[10px] bg-amber-50 px-1.5 py-0.5 rounded font-mono text-amber-800 border border-amber-200">
+                                إيصال: {order.receipt_number}
                               </span>
                             )}
                           </div>

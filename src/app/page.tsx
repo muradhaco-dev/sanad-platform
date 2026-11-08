@@ -1,28 +1,57 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { STORE_PRODUCTS } from '@/lib/products';
-import LemonCheckoutButton from '@/components/LemonCheckoutButton';
+import { useCart } from '@/lib/CartContext';
+import { supabase } from '@/lib/supabaseClient';
+import { Product } from '@/types/store';
 import AboutUsSection from '@/components/AboutUsSection';
 import {
   ShieldCheck,
   ShoppingBag,
+  ShoppingCart,
   ArrowRight,
   ArrowLeft,
   Check,
-  Zap,
   Sparkles,
-  Lock,
   Truck,
-  Heart,
-  RotateCcw
+  Building2,
+  Loader2,
+  PackageCheck
 } from 'lucide-react';
 
 export default function HomePage() {
   const { t, lang } = useLanguage();
+  const { addToCart } = useCart();
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const featuredProducts = STORE_PRODUCTS.filter((p) => p.is_featured);
+  useEffect(() => {
+    const fetchSupabaseProducts = async () => {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('products')
+          .select('*')
+          .eq('is_active', true)
+          .order('created_at', { ascending: false });
+
+        if (!error && data) {
+          setProducts(data as Product[]);
+        } else {
+          setProducts([]);
+        }
+      } catch (err) {
+        console.warn('Error fetching products from Supabase:', err);
+        setProducts([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSupabaseProducts();
+  }, []);
 
   return (
     <div className="min-h-screen bg-slate-50/50 w-full overflow-x-hidden">
@@ -56,11 +85,11 @@ export default function HomePage() {
             </Link>
 
             <Link
-              href="/dashboard"
+              href="/cart"
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-white px-6 py-3.5 sm:py-4 rounded-xl font-bold text-sm transition cursor-pointer"
             >
-              <ShoppingBag className="w-4 h-4 text-emerald-400" />
-              <span>{t('orders')}</span>
+              <ShoppingCart className="w-4 h-4 text-emerald-400" />
+              <span>{lang === 'ar' ? 'سلة المشتريات' : 'Shopping Cart'}</span>
             </Link>
           </div>
 
@@ -68,64 +97,35 @@ export default function HomePage() {
           <div className="pt-8 sm:pt-12 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 border-t border-slate-800/80 mt-8 sm:mt-12 text-xs text-slate-400">
             <div className="flex items-center justify-center gap-2 py-1">
               <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>{lang === 'ar' ? 'بدون أي اشتراكات دورية' : 'Zero Recurring Subscriptions'}</span>
+              <span>{lang === 'ar' ? 'تحويل محلي مباشر بدون اشتراكات' : 'Direct Domestic Syrian Transfer'}</span>
             </div>
             <div className="flex items-center justify-center gap-2 py-1">
-              <Lock className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>{lang === 'ar' ? 'تاجر مسجل رسمي (Lemon Squeezy)' : 'Authorized Merchant of Record'}</span>
+              <Building2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span>{lang === 'ar' ? 'حوالات رسمية: الهرم، الفؤاد، سيريتل، شام كاش' : 'Licensed Syrian Remittances'}</span>
             </div>
             <div className="flex items-center justify-center gap-2 py-1">
               <Truck className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>{lang === 'ar' ? 'توصيل ميداني مباشر خلال 24 ساعة' : 'Direct 24-48h Field Fulfillment'}</span>
+              <span>{lang === 'ar' ? 'توصيل ميداني مباشر ليد الأهل في سوريا' : 'Direct Field Fulfillment to Family'}</span>
             </div>
           </div>
         </div>
       </section>
 
-      {/* 3 Pillars / Conversion Features */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-6 sm:-mt-10 relative z-20">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
-          <div className="bg-white rounded-2xl sm:rounded-3xl p-6 sm:p-8 border border-slate-200/90 shadow-md sm:shadow-lg space-y-3">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-lg sm:text-xl">
-              1
-            </div>
-            <h3 className="text-base sm:text-lg font-black text-slate-900">{t('feature1Title')}</h3>
-            <p className="text-xs text-slate-600 leading-relaxed">{t('feature1Desc')}</p>
-          </div>
-
-          <div className="bg-white rounded-2xl sm:rounded-3xl p-6 sm:p-8 border border-slate-200/90 shadow-md sm:shadow-lg space-y-3">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-lg sm:text-xl">
-              2
-            </div>
-            <h3 className="text-base sm:text-lg font-black text-slate-900">{t('feature2Title')}</h3>
-            <p className="text-xs text-slate-600 leading-relaxed">{t('feature2Desc')}</p>
-          </div>
-
-          <div className="bg-white rounded-2xl sm:rounded-3xl p-6 sm:p-8 border border-slate-200/90 shadow-md sm:shadow-lg space-y-3">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold text-lg sm:text-xl">
-              3
-            </div>
-            <h3 className="text-base sm:text-lg font-black text-slate-900">{t('feature3Title')}</h3>
-            <p className="text-xs text-slate-600 leading-relaxed">{t('feature3Desc')}</p>
-          </div>
-        </div>
-      </section>
-
-      {/* Featured Products Showcase */}
-      <section className="py-12 sm:py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-8 sm:space-y-12">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 sm:gap-4">
+      {/* Featured Products Section - strictly from Supabase */}
+      <section className="py-12 sm:py-16 lg:py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-6 sm:space-y-8">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-slate-200/80 pb-6">
           <div>
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 text-xs font-bold mb-2 border border-emerald-200">
-              <ShoppingBag className="w-3.5 h-3.5 shrink-0" />
-              <span>{t('oneTimePayment')}</span>
+              <Sparkles className="w-3.5 h-3.5 shrink-0" />
+              <span>{lang === 'ar' ? 'منتجات حقيقية من قاعدة البيانات' : 'Verified Supabase Catalog'}</span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
               {t('featuredProducts')}
             </h2>
             <p className="text-xs text-slate-500 mt-1">
               {lang === 'ar'
-                ? 'اختر الباقة المطلوبة واطلبها بضغطة زر واحدة وآمنة'
-                : 'Select your package and checkout with a single transparent payment'}
+                ? 'الباقات المعروضة مباشرة من مستودعات التجار المحليين في سوريا'
+                : 'Direct goods dispatched by local vendors across Syria'}
             </p>
           </div>
 
@@ -138,83 +138,110 @@ export default function HomePage() {
           </Link>
         </div>
 
-        {/* Products Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-8">
-          {featuredProducts.map((product) => {
-            const title = lang === 'ar' ? product.title_ar : product.title_en;
-            const desc = lang === 'ar' ? product.description_ar : product.description_en;
-            const badge = lang === 'ar' ? product.badge_ar : product.badge_en;
-            const items = lang === 'ar' ? product.items_ar : product.items_en;
+        {/* Loading State */}
+        {loading ? (
+          <div className="p-16 flex flex-col items-center justify-center gap-3 text-slate-400">
+            <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+            <p className="text-xs font-bold">{lang === 'ar' ? 'جارٍ تحميل المنتجات من قاعدة البيانات...' : 'Loading items from Supabase...'}</p>
+          </div>
+        ) : products.length === 0 ? (
+          /* Empty State: No Items Available */
+          <div className="bg-white rounded-3xl border border-dashed border-slate-300 p-12 sm:p-16 text-center space-y-3">
+            <ShoppingBag className="w-12 h-12 text-slate-300 mx-auto" />
+            <h3 className="text-base font-bold text-slate-700">
+              {lang === 'ar' ? 'لا توجد عناصر متاحة حالياً' : 'No items available'}
+            </h3>
+            <p className="text-xs text-slate-400 max-w-sm mx-auto">
+              {lang === 'ar'
+                ? 'قاعدة البيانات فارغة حالياً. يمكن للتجار المسجلين إضافة باقاتهم عبر لوحة تحكم التاجر.'
+                : 'No products are currently published in the database. Vendors can add products from the Vendor Dashboard.'}
+            </p>
+          </div>
+        ) : (
+          /* Products Grid */
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-8">
+            {products.map((product) => {
+              const title = lang === 'ar' ? product.title_ar : product.title_en || product.title_ar;
+              const desc = lang === 'ar' ? product.description_ar : product.description_en || product.description_ar;
+              const productSlug = product.slug || product.id;
 
-            return (
-              <div
-                key={product.id}
-                className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/90 overflow-hidden shadow-xs hover:shadow-xl transition-all duration-300 flex flex-col justify-between group"
-              >
-                <div>
-                  <div className="relative h-48 sm:h-56 w-full overflow-hidden bg-slate-100">
-                    <img
-                      src={product.image_url}
-                      alt={title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                    {badge && (
-                      <span className="absolute top-3 end-3 sm:top-4 sm:end-4 bg-emerald-600 text-white text-[10px] sm:text-[11px] font-bold px-2.5 sm:px-3 py-1 rounded-full shadow-md">
-                        {badge}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="p-4 sm:p-6">
-                    <h3 className="text-base sm:text-lg font-bold text-slate-900 group-hover:text-emerald-700 transition-colors mb-2">
-                      <Link href={`/products/${product.slug}`}>{title}</Link>
-                    </h3>
-                    <p className="text-xs text-slate-500 leading-relaxed mb-4 line-clamp-2">
-                      {desc}
-                    </p>
-
-                    <div className="border-t border-slate-100 pt-3 space-y-1.5">
-                      <div className="text-[11px] font-bold text-slate-700 mb-1">
-                        {t('whatsIncluded')}:
-                      </div>
-                      {items.slice(0, 3).map((item, idx) => (
-                        <div key={idx} className="flex items-start gap-1.5 text-xs text-slate-600">
-                          <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
-                          <span className="line-clamp-1">{item}</span>
+              return (
+                <div
+                  key={product.id}
+                  className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/90 overflow-hidden shadow-xs hover:shadow-xl transition-all duration-300 flex flex-col justify-between group"
+                >
+                  <div>
+                    <div className="relative h-48 sm:h-56 w-full overflow-hidden bg-slate-100 flex items-center justify-center">
+                      {product.image_url ? (
+                        <img
+                          src={product.image_url}
+                          alt={title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-emerald-50 text-emerald-800 flex items-center justify-center font-black text-xl">
+                          سَنَد
                         </div>
-                      ))}
+                      )}
+                      <span className="absolute top-3 end-3 bg-emerald-600 text-white text-[10px] sm:text-[11px] font-bold px-2.5 py-1 rounded-full shadow-md">
+                        {lang === 'ar' ? 'متوفر' : 'Available'}
+                      </span>
+                    </div>
+
+                    <div className="p-4 sm:p-6">
+                      <h3 className="text-base sm:text-lg font-bold text-slate-900 group-hover:text-emerald-700 transition-colors mb-2">
+                        <Link href={`/products/${productSlug}`}>{title}</Link>
+                      </h3>
+                      {desc && (
+                        <p className="text-xs text-slate-500 leading-relaxed mb-4 line-clamp-2">
+                          {desc}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="p-4 sm:p-6 bg-slate-50/70 border-t border-slate-100 space-y-3">
+                    <div className="flex items-baseline justify-between">
+                      <div>
+                        <div className="text-xl sm:text-2xl font-black text-slate-900">${product.price_usd} USD</div>
+                        <div className="text-[10px] text-emerald-700 font-bold">{t('oneTimePayment')}</div>
+                      </div>
+                      <Link
+                        href={`/products/${productSlug}`}
+                        className="text-xs font-bold text-slate-600 hover:text-emerald-700 underline underline-offset-4"
+                      >
+                        {t('details')} →
+                      </Link>
+                    </div>
+
+                    {/* Add to Cart & Checkout Buttons */}
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => addToCart(product)}
+                        className="w-full py-2.5 px-3 rounded-xl bg-white border border-slate-300 hover:bg-slate-100 text-slate-800 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer shadow-2xs"
+                      >
+                        <ShoppingCart className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>{lang === 'ar' ? 'أضف للسلة' : 'Add to Cart'}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          addToCart(product);
+                        }}
+                        className="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer shadow-xs"
+                      >
+                        <ShoppingBag className="w-3.5 h-3.5" />
+                        <span>{lang === 'ar' ? 'شراء الآن' : 'Buy Now'}</span>
+                      </button>
                     </div>
                   </div>
                 </div>
-
-                <div className="p-4 sm:p-6 bg-slate-50/70 border-t border-slate-100 space-y-3">
-                  <div className="flex items-baseline justify-between">
-                    <div>
-                      <div className="text-xl sm:text-2xl font-black text-slate-900">${product.price_usd} USD</div>
-                      <div className="text-[10px] text-emerald-700 font-bold">{t('oneTimePayment')}</div>
-                    </div>
-                    <Link
-                      href={`/products/${product.slug}`}
-                      className="text-xs font-bold text-slate-600 hover:text-emerald-700 underline underline-offset-4"
-                    >
-                      {t('details')} →
-                    </Link>
-                  </div>
-
-                  {/* Syrian Local Remittance Checkout Button */}
-                  <LemonCheckoutButton
-                    productId={product.id}
-                    productName={title}
-                    priceUSD={product.price_usd}
-                    productImage={product.image_url}
-                    vendorId={product.vendor_id}
-                    vendorName={product.vendor_name}
-                  />
-                </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       {/* Trust & Guarantee Banner */}

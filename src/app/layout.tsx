@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from 'next';
 import { Suspense } from 'react';
 import './globals.css';
 import { LanguageProvider } from '@/lib/i18n/LanguageContext';
+import { CartProvider } from '@/lib/CartContext';
+import CartDrawer from '@/components/CartDrawer';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 
@@ -26,15 +28,18 @@ export default function RootLayout({
     <html lang="en" dir="ltr" suppressHydrationWarning>
       <body className="min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans antialiased selection:bg-emerald-500 selection:text-white overflow-x-hidden">
         <LanguageProvider>
-          <Suspense fallback={null}>
-            <Navbar />
-          </Suspense>
-          <main className="flex-1 w-full max-w-full overflow-x-hidden">
+          <CartProvider>
             <Suspense fallback={null}>
-              {children}
+              <Navbar />
             </Suspense>
-          </main>
-          <Footer />
+            <CartDrawer />
+            <main className="flex-1 w-full max-w-full overflow-x-hidden">
+              <Suspense fallback={null}>
+                {children}
+              </Suspense>
+            </main>
+            <Footer />
+          </CartProvider>
         </LanguageProvider>
       </body>
     </html>

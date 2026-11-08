@@ -26,7 +26,8 @@ export interface Order {
   beneficiary_city: string;
   beneficiary_address: string;
   notes?: string;
-  lemon_squeezy_order_id?: string;
+  receipt_number?: string;
+  payment_method?: string;
   created_at: string;
   updated_at: string;
   service?: Service;
